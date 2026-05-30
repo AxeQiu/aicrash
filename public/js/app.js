@@ -413,6 +413,7 @@
   const sse = new SSEClient(`${API_BASE}/events`);
   sse.onMessage = (items) => {
     items.forEach(item => {
+      if (item.lang !== getLang()) return;
       const existing = newsFeed.querySelector(`[data-id="${item.id}"]`);
       if (!existing) {
         const el = createNewsItem(item);
