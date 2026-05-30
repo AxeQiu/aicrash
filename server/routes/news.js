@@ -54,12 +54,12 @@ router.get('/news', async (req, res) => {
     const dataSql = `
       SELECT n.* FROM news n
       INNER JOIN (
-        SELECT url, MAX(published_at) AS max_published_at
+        SELECT url, MAX(created_at) AS max_created_at
         FROM news
         WHERE lang = ? AND url IN (SELECT url FROM news WHERE lang = ? AND ${filterClause} GROUP BY url)
         GROUP BY url
-      ) sub ON n.url = sub.url AND n.published_at = sub.max_published_at
-      ORDER BY n.published_at DESC
+      ) sub ON n.url = sub.url AND n.created_at = sub.max_created_at
+      ORDER BY n.created_at DESC
       LIMIT ${limitVal} OFFSET ${offsetVal}
     `;
     const [rows] = await db.query(dataSql, subParams);

@@ -48,8 +48,8 @@ let lastCheckTime = new Date();
 
 setInterval(async () => {
   try {
-    const [rows] = await db.execute(
-      'SELECT * FROM news WHERE created_at > ? ORDER BY published_at DESC',
+    const [rows] = await db.query(
+      'SELECT * FROM news WHERE created_at > ? ORDER BY created_at DESC',
       [lastCheckTime]
     );
     if (rows.length > 0) {
