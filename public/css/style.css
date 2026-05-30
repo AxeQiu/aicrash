@@ -161,16 +161,6 @@ body {
   align-items: center;
 }
 
-.mobile-live-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 1px;
-}
-
 .stat {
   display: flex;
   flex-direction: column;
@@ -601,7 +591,25 @@ body {
   .hamburger {
     display: flex;
   }
+  .live-indicator {
+    font-size: 10px;
+    gap: 4px;
+  }
+  .live-dot {
+    width: 6px;
+    height: 6px;
+  }
+  .lang-switch {
+    padding: 1px;
+  }
+  .lang-btn {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  .header-right {
+    gap: 8px;
+  }
   .main-layout {
-    margin-top: 108px;
+    margin-top: 60px;
   }
 }

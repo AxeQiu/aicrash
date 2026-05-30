@@ -22,9 +22,18 @@
   const liveIndicator = document.getElementById('live-indicator');
   const mTotalCountEl = document.getElementById('m-total-count');
   const mTodayCountEl = document.getElementById('m-today-count');
-  const mLiveIndicator = document.getElementById('m-live-indicator');
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobile-menu');
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('active');
+    mobileMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!hamburger.contains(e.target) && !mobileMenu.contains(e.target)) {
+      hamburger.classList.remove('active');
+      mobileMenu.classList.remove('open');
+    }
+  });
 
   let trendChart = null;
 
@@ -388,18 +397,6 @@
     }
   });
 
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('active');
-    mobileMenu.classList.toggle('open');
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!hamburger.contains(e.target) && !mobileMenu.contains(e.target)) {
-      hamburger.classList.remove('active');
-      mobileMenu.classList.remove('open');
-    }
-  });
-
   document.getElementById('lang-switch').addEventListener('click', (e) => {
     if (e.target.classList.contains('lang-btn')) {
       const newLang = e.target.dataset.lang;
@@ -424,26 +421,21 @@
     });
     loadTodayStats();
     liveIndicator.style.color = '#00ff88';
-    mLiveIndicator.style.color = '#00ff88';
     setTimeout(() => {
       liveIndicator.style.color = '';
-      mLiveIndicator.style.color = '';
     }, 1000);
   };
 
   sse.onConnect = () => {
     liveIndicator.querySelector('span:last-child').textContent = 'LIVE';
-    mLiveIndicator.querySelector('span:last-child').textContent = 'LIVE';
   };
 
   sse.onReconnect = (remaining) => {
     liveIndicator.querySelector('span:last-child').textContent = 'RETRY';
-    mLiveIndicator.querySelector('span:last-child').textContent = 'RETRY';
   };
 
   sse.onDisconnect = () => {
     liveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
-    mLiveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
   };
 
   applyI18n();
