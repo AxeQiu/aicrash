@@ -19,8 +19,12 @@
   const loadMoreBtn = document.getElementById('load-more-btn');
   const totalCountEl = document.getElementById('total-count');
   const todayCountEl = document.getElementById('today-count');
-  const avgSeverityEl = document.getElementById('avg-severity');
   const liveIndicator = document.getElementById('live-indicator');
+  const mTotalCountEl = document.getElementById('m-total-count');
+  const mTodayCountEl = document.getElementById('m-today-count');
+  const mLiveIndicator = document.getElementById('m-live-indicator');
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobile-menu');
 
   let trendChart = null;
 
@@ -297,7 +301,9 @@
   }
 
   function updateStats(total) {
-    totalCountEl.textContent = total.toLocaleString();
+    const formatted = total.toLocaleString();
+    totalCountEl.textContent = formatted;
+    mTotalCountEl.textContent = formatted;
   }
 
   async function loadTodayStats() {
@@ -310,16 +316,9 @@
       const todayParams = new URLSearchParams({ limit: 1, page: 1, lang: getLang(), start_date: new Date().toISOString().slice(0, 10) });
       const todayRes = await fetch(`${API_BASE}/news?${todayParams}`);
       const todayData = await todayRes.json();
-      todayCountEl.textContent = todayData.pagination.total.toLocaleString();
-
-      const sevParams = new URLSearchParams({ period: 'day', days: 1, lang: getLang() });
-      const sevRes = await fetch(`${API_BASE}/news/trends?${sevParams}`);
-      const sevData = await sevRes.json();
-      if (sevData.length > 0) {
-        avgSeverityEl.textContent = parseFloat(sevData[0].avg_severity).toFixed(1);
-      } else {
-        avgSeverityEl.textContent = '—';
-      }
+      const todayFormatted = todayData.pagination.total.toLocaleString();
+      todayCountEl.textContent = todayFormatted;
+      mTodayCountEl.textContent = todayFormatted;
     } catch (err) {
       console.error('Failed to load stats:', err);
     }
@@ -389,6 +388,18 @@
     }
   });
 
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('active');
+    mobileMenu.classList.toggle('open');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!hamburger.contains(e.target) && !mobileMenu.contains(e.target)) {
+      hamburger.classList.remove('active');
+      mobileMenu.classList.remove('open');
+    }
+  });
+
   document.getElementById('lang-switch').addEventListener('click', (e) => {
     if (e.target.classList.contains('lang-btn')) {
       const newLang = e.target.dataset.lang;
@@ -413,17 +424,26 @@
     });
     loadTodayStats();
     liveIndicator.style.color = '#00ff88';
+    mLiveIndicator.style.color = '#00ff88';
     setTimeout(() => {
       liveIndicator.style.color = '';
+      mLiveIndicator.style.color = '';
     }, 1000);
   };
 
   sse.onConnect = () => {
     liveIndicator.querySelector('span:last-child').textContent = 'LIVE';
+    mLiveIndicator.querySelector('span:last-child').textContent = 'LIVE';
+  };
+
+  sse.onReconnect = (remaining) => {
+    liveIndicator.querySelector('span:last-child').textContent = 'RETRY';
+    mLiveIndicator.querySelector('span:last-child').textContent = 'RETRY';
   };
 
   sse.onDisconnect = () => {
     liveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
+    mLiveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
   };
 
   applyI18n();
