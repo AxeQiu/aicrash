@@ -4,47 +4,65 @@ const db = require('../db');
 
 router.get('/news', async (req, res) => {
   try {
-    const { page = 1, limit = 50, source, category, severity, search, start_date, end_date } = req.query;
+    const { page = 1, limit = 50, source, category, severity, search, start_date, end_date, lang } = req.query;
     const limitVal = parseInt(limit, 10);
     const offsetVal = (parseInt(page, 10) - 1) * limitVal;
+    const langVal = lang === 'en' ? 'en' : 'zh';
 
-    let where = ['1=1'];
-    let params = [];
+    let filterWhere = ['1=1'];
+    let filterParams = [];
 
     if (source) {
-      where.push('source = ?');
-      params.push(source);
+      filterWhere.push('source = ?');
+      filterParams.push(source);
     }
     if (category) {
-      where.push('category = ?');
-      params.push(category);
+      filterWhere.push('category = ?');
+      filterParams.push(category);
     }
-    if (severity) {
-      where.push('severity = ?');
-      params.push(parseInt(severity, 10));
+    if (severity !== undefined && severity !== '') {
+      filterWhere.push('severity = ?');
+      filterParams.push(parseInt(severity, 10));
     }
     if (search) {
-      where.push('(title LIKE ? OR summary LIKE ? OR title_en LIKE ? OR summary_en LIKE ?)');
+      filterWhere.push('(title LIKE ? OR summary LIKE ?)');
       const s = `%${search}%`;
-      params.push(s, s, s, s);
+      filterParams.push(s, s);
     }
     if (start_date) {
-      where.push('published_at >= ?');
-      params.push(start_date);
+      filterWhere.push('published_at >= ?');
+      filterParams.push(start_date);
     }
     if (end_date) {
-      where.push('published_at <= ?');
-      params.push(end_date);
+      filterWhere.push('published_at <= ?');
+      filterParams.push(end_date);
     }
 
-    const whereClause = where.join(' AND ');
+    const filterClause = filterWhere.join(' AND ');
+    const subParams = [langVal, langVal, ...filterParams];
 
-    const countSql = `SELECT COUNT(*) as total FROM news WHERE ${whereClause}`;
-    const [countRows] = await db.query(countSql, params);
+    const countSql = `
+      SELECT COUNT(*) AS total FROM (
+        SELECT 1 FROM news
+        WHERE url IN (SELECT url FROM news WHERE lang = ? AND ${filterClause} GROUP BY url)
+        GROUP BY url
+      ) t
+    `;
+    const [countRows] = await db.query(countSql, [langVal, ...filterParams]);
     const total = countRows[0].total;
 
-    const dataSql = `SELECT * FROM news WHERE ${whereClause} ORDER BY published_at DESC LIMIT ${limitVal} OFFSET ${offsetVal}`;
-    const [rows] = await db.query(dataSql, params);
+    const dataSql = `
+      SELECT n.* FROM news n
+      INNER JOIN (
+        SELECT url, MAX(published_at) AS max_published_at
+        FROM news
+        WHERE lang = ? AND url IN (SELECT url FROM news WHERE lang = ? AND ${filterClause} GROUP BY url)
+        GROUP BY url
+      ) sub ON n.url = sub.url AND n.published_at = sub.max_published_at
+      ORDER BY n.published_at DESC
+      LIMIT ${limitVal} OFFSET ${offsetVal}
+    `;
+    const [rows] = await db.query(dataSql, subParams);
 
     res.json({
       data: rows,
@@ -63,20 +81,28 @@ router.get('/news', async (req, res) => {
 
 router.get('/news/trends', async (req, res) => {
   try {
-    const { period = 'day', days = 30 } = req.query;
+    const { period = 'day', days = 30, lang } = req.query;
     const dateFormat = period === 'week' ? '%Y-%u' : '%Y-%m-%d';
+    const langVal = lang === 'en' ? 'en' : 'zh';
 
     const sql = `
       SELECT
-        DATE_FORMAT(published_at, '${dateFormat}') AS period,
+        n.period,
         COUNT(*) AS count,
-        AVG(severity) AS avg_severity
-      FROM news
-      WHERE published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-      GROUP BY period
-      ORDER BY period ASC
+        AVG(n.avg_severity) AS avg_severity
+      FROM (
+        SELECT
+          DATE_FORMAT(published_at, '${dateFormat}') AS period,
+          url,
+          MAX(severity) AS avg_severity
+        FROM news
+        WHERE lang = ? AND published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        GROUP BY url, DATE_FORMAT(published_at, '${dateFormat}')
+      ) n
+      GROUP BY n.period
+      ORDER BY n.period ASC
     `;
-    const [rows] = await db.query(sql, [parseInt(days, 10)]);
+    const [rows] = await db.query(sql, [langVal, parseInt(days, 10)]);
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch trends:', err);
@@ -86,8 +112,18 @@ router.get('/news/trends', async (req, res) => {
 
 router.get('/news/filters', async (req, res) => {
   try {
-    const [sources] = await db.query('SELECT DISTINCT source FROM news WHERE source IS NOT NULL ORDER BY source');
-    const [categories] = await db.query('SELECT DISTINCT category FROM news WHERE category IS NOT NULL ORDER BY category');
+    const { lang } = req.query;
+    const langVal = lang === 'en' ? 'en' : 'zh';
+
+    const urlSubSql = `SELECT url FROM news WHERE lang = '${langVal}' GROUP BY url`;
+    const [sources] = await db.query(
+      `SELECT DISTINCT source FROM news WHERE lang = ? AND source IS NOT NULL AND url IN (${urlSubSql}) ORDER BY source`,
+      [langVal]
+    );
+    const [categories] = await db.query(
+      `SELECT DISTINCT category FROM news WHERE lang = ? AND category IS NOT NULL AND url IN (${urlSubSql}) ORDER BY category`,
+      [langVal]
+    );
     res.json({
       sources: sources.map(r => r.source),
       categories: categories.map(r => r.category),

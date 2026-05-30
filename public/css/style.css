@@ -255,6 +255,7 @@ body {
 .severity-dot.s3 { background: var(--severity-3); }
 .severity-dot.s2 { background: var(--severity-2); }
 .severity-dot.s1 { background: var(--severity-1); }
+.severity-dot.s0 { background: #00d084; }
 
 .category-filter,
 .source-filter {
@@ -374,6 +375,7 @@ body {
 .severity-badge.s3 { background: var(--severity-3); }
 .severity-badge.s2 { background: var(--severity-2); color: #1a1a26; }
 .severity-badge.s1 { background: var(--severity-1); color: #1a1a26; }
+.severity-badge.s0 { background: #00d084; color: #fff; }
 
 .news-title {
   font-size: 15px;

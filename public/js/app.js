@@ -41,12 +41,12 @@
     rebuildDynamicFilters();
   }
 
-  function getCategoryDisplay(cat) {
+  function getCategoryKey(cat) {
     if (!cat) return '';
     const lang = getLang();
     if (lang === 'en') {
       const map = i18n.en.categories;
-      return map[cat] || cat;
+      return Object.keys(map).find(k => map[k] === cat) || cat;
     }
     return cat;
   }
@@ -64,7 +64,6 @@
   }
 
   function createNewsItem(item) {
-    const lang = getLang();
     const el = document.createElement('a');
     el.className = 'news-item';
     el.href = item.url || '#';
@@ -72,19 +71,19 @@
     el.rel = 'noopener noreferrer';
     el.dataset.id = item.id;
 
-    const title = (lang === 'en' && item.title_en) ? item.title_en : item.title;
-    const summary = (lang === 'en' && item.summary_en) ? item.summary_en : item.summary;
-    const category = (lang === 'en' && item.category_en) ? item.category_en : getCategoryDisplay(item.category);
+    const severityBadge = item.severity === 0
+      ? '<div class="severity-badge s0">✓</div>'
+      : `<div class="severity-badge s${item.severity || 1}">${item.severity || 1}</div>`;
 
     el.innerHTML = `
       <div class="news-item-header">
-        <div class="severity-badge s${item.severity || 1}">${item.severity || 1}</div>
-        <div class="news-title">${escapeHtml(title)}</div>
+        ${severityBadge}
+        <div class="news-title">${escapeHtml(item.title)}</div>
       </div>
-      ${summary ? `<div class="news-summary">${escapeHtml(summary)}</div>` : ''}
+      ${item.summary ? `<div class="news-summary">${escapeHtml(item.summary)}</div>` : ''}
       <div class="news-meta">
         ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
-        ${category ? `<span class="news-category">${escapeHtml(category)}</span>` : ''}
+        ${item.category ? `<span class="news-category">${escapeHtml(item.category)}</span>` : ''}
         <span class="news-time">${formatTime(item.published_at)}</span>
       </div>
     `;
@@ -98,26 +97,33 @@
     return div.innerHTML;
   }
 
+  function buildParams() {
+    const params = new URLSearchParams({
+      page: currentPage,
+      limit: 50,
+      lang: getLang(),
+    });
+    if (state.search) params.set('search', state.search);
+    if (state.source) params.set('source', state.source);
+    if (state.category) {
+      params.set('category', getCategoryKey(state.category));
+    }
+    if (state.severity !== '') params.set('severity', state.severity);
+    if (state.days) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(state.days));
+      params.set('start_date', startDate.toISOString().slice(0, 19).replace('T', ' '));
+    }
+    return params;
+  }
+
   async function fetchNews(append = false) {
     if (isLoading) return;
     isLoading = true;
     loadingEl.style.display = append ? 'none' : 'block';
 
     try {
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: 50,
-      });
-      if (state.search) params.set('search', state.search);
-      if (state.source) params.set('source', state.source);
-      if (state.category) params.set('category', state.category);
-      if (state.severity) params.set('severity', state.severity);
-      if (state.days) {
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(state.days));
-        params.set('start_date', startDate.toISOString().slice(0, 19).replace('T', ' '));
-      }
-
+      const params = buildParams();
       const res = await fetch(`${API_BASE}/news?${params}`);
       const data = await res.json();
 
@@ -155,6 +161,7 @@
       const params = new URLSearchParams({
         period: state.trendPeriod,
         days: state.days || 30,
+        lang: getLang(),
       });
       const res = await fetch(`${API_BASE}/news/trends?${params}`);
       const data = await res.json();
@@ -238,7 +245,8 @@
 
   async function fetchFilters() {
     try {
-      const res = await fetch(`${API_BASE}/news/filters`);
+      const params = new URLSearchParams({ lang: getLang() });
+      const res = await fetch(`${API_BASE}/news/filters?${params}`);
       cachedFilterData = await res.json();
       rebuildDynamicFilters();
     } catch (err) {
@@ -264,7 +272,7 @@
       const btn = document.createElement('button');
       btn.className = 'category-btn' + (activeCatValue === cat ? ' active' : '');
       btn.dataset.category = cat;
-      btn.textContent = getCategoryDisplay(cat);
+      btn.textContent = cat;
       categoryFilter.appendChild(btn);
     });
 
@@ -294,15 +302,18 @@
 
   async function loadTodayStats() {
     try {
-      const res = await fetch(`${API_BASE}/news?limit=1&page=1`);
+      const params = new URLSearchParams({ limit: 1, page: 1, lang: getLang() });
+      const res = await fetch(`${API_BASE}/news?${params}`);
       const data = await res.json();
       totalCountEl.textContent = data.pagination.total.toLocaleString();
 
-      const todayRes = await fetch(`${API_BASE}/news?limit=1&page=1&start_date=${new Date().toISOString().slice(0, 10)}`);
+      const todayParams = new URLSearchParams({ limit: 1, page: 1, lang: getLang(), start_date: new Date().toISOString().slice(0, 10) });
+      const todayRes = await fetch(`${API_BASE}/news?${todayParams}`);
       const todayData = await todayRes.json();
       todayCountEl.textContent = todayData.pagination.total.toLocaleString();
 
-      const sevRes = await fetch(`${API_BASE}/news/trends?period=day&days=1`);
+      const sevParams = new URLSearchParams({ period: 'day', days: 1, lang: getLang() });
+      const sevRes = await fetch(`${API_BASE}/news/trends?${sevParams}`);
       const sevData = await sevRes.json();
       if (sevData.length > 0) {
         avgSeverityEl.textContent = parseFloat(sevData[0].avg_severity).toFixed(1);
@@ -385,6 +396,8 @@
         setLanguage(newLang);
         applyI18n();
         resetAndFetch();
+        loadTodayStats();
+        fetchFilters();
       }
     }
   });
