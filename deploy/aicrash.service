@@ -1,0 +1,19 @@
+[Unit]
+Description=aicrash.news - AI Industry Crash News Monitor
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=aicrash
+Group=aicrash
+WorkingDirectory=/opt/aicrash
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
