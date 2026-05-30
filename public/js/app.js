@@ -1,0 +1,421 @@
+(function () {
+  const API_BASE = '/api';
+  let currentPage = 1;
+  let hasMore = true;
+  let isLoading = false;
+
+  const state = {
+    search: '',
+    source: '',
+    category: '',
+    severity: '',
+    days: '30',
+    trendPeriod: 'day',
+  };
+
+  const newsFeed = document.getElementById('news-feed');
+  const loadingEl = document.getElementById('loading');
+  const loadMoreEl = document.getElementById('load-more');
+  const loadMoreBtn = document.getElementById('load-more-btn');
+  const totalCountEl = document.getElementById('total-count');
+  const todayCountEl = document.getElementById('today-count');
+  const avgSeverityEl = document.getElementById('avg-severity');
+  const liveIndicator = document.getElementById('live-indicator');
+
+  let trendChart = null;
+
+  function applyI18n() {
+    const lang = getLang();
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      el.placeholder = t(key);
+    });
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    rebuildDynamicFilters();
+  }
+
+  function getCategoryDisplay(cat) {
+    if (!cat) return '';
+    const lang = getLang();
+    if (lang === 'en') {
+      const map = i18n.en.categories;
+      return map[cat] || cat;
+    }
+    return cat;
+  }
+
+  function formatTime(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now - d;
+    const lang = getLang();
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' ' + t('minutesAgo');
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' ' + t('hoursAgo');
+    if (diff < 604800000) return Math.floor(diff / 86400000) + ' ' + t('daysAgo');
+    return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function createNewsItem(item) {
+    const lang = getLang();
+    const el = document.createElement('a');
+    el.className = 'news-item';
+    el.href = item.url || '#';
+    el.target = '_blank';
+    el.rel = 'noopener noreferrer';
+    el.dataset.id = item.id;
+
+    const title = (lang === 'en' && item.title_en) ? item.title_en : item.title;
+    const summary = (lang === 'en' && item.summary_en) ? item.summary_en : item.summary;
+    const category = (lang === 'en' && item.category_en) ? item.category_en : getCategoryDisplay(item.category);
+
+    el.innerHTML = `
+      <div class="news-item-header">
+        <div class="severity-badge s${item.severity || 1}">${item.severity || 1}</div>
+        <div class="news-title">${escapeHtml(title)}</div>
+      </div>
+      ${summary ? `<div class="news-summary">${escapeHtml(summary)}</div>` : ''}
+      <div class="news-meta">
+        ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
+        ${category ? `<span class="news-category">${escapeHtml(category)}</span>` : ''}
+        <span class="news-time">${formatTime(item.published_at)}</span>
+      </div>
+    `;
+    return el;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function fetchNews(append = false) {
+    if (isLoading) return;
+    isLoading = true;
+    loadingEl.style.display = append ? 'none' : 'block';
+
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 50,
+      });
+      if (state.search) params.set('search', state.search);
+      if (state.source) params.set('source', state.source);
+      if (state.category) params.set('category', state.category);
+      if (state.severity) params.set('severity', state.severity);
+      if (state.days) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - parseInt(state.days));
+        params.set('start_date', startDate.toISOString().slice(0, 19).replace('T', ' '));
+      }
+
+      const res = await fetch(`${API_BASE}/news?${params}`);
+      const data = await res.json();
+
+      if (!append) {
+        newsFeed.innerHTML = '';
+      }
+
+      if (data.data.length === 0 && !append) {
+        newsFeed.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${t('emptyIcon')}</div>
+            <div class="empty-state-text">${t('emptyText')}</div>
+          </div>
+        `;
+      } else {
+        data.data.forEach(item => {
+          newsFeed.appendChild(createNewsItem(item));
+        });
+      }
+
+      hasMore = currentPage < data.pagination.totalPages;
+      loadMoreEl.style.display = hasMore ? 'block' : 'none';
+
+      updateStats(data.pagination.total);
+    } catch (err) {
+      console.error('Failed to fetch news:', err);
+    } finally {
+      isLoading = false;
+      loadingEl.style.display = 'none';
+    }
+  }
+
+  async function fetchTrends() {
+    try {
+      const params = new URLSearchParams({
+        period: state.trendPeriod,
+        days: state.days || 30,
+      });
+      const res = await fetch(`${API_BASE}/news/trends?${params}`);
+      const data = await res.json();
+      renderTrendChart(data);
+    } catch (err) {
+      console.error('Failed to fetch trends:', err);
+    }
+  }
+
+  function renderTrendChart(data) {
+    const ctx = document.getElementById('trend-chart').getContext('2d');
+
+    if (trendChart) {
+      trendChart.destroy();
+    }
+
+    const labels = data.map(d => d.period);
+    const counts = data.map(d => d.count);
+    const severities = data.map(d => parseFloat(d.avg_severity).toFixed(1));
+
+    trendChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: t('countLabel'),
+            data: counts,
+            backgroundColor: 'rgba(255, 59, 59, 0.6)',
+            borderColor: 'rgba(255, 59, 59, 1)',
+            borderWidth: 1,
+            yAxisID: 'y',
+            order: 2,
+          },
+          {
+            label: t('severityLineLabel'),
+            data: severities,
+            type: 'line',
+            borderColor: 'rgba(255, 187, 51, 1)',
+            backgroundColor: 'rgba(255, 187, 51, 0.1)',
+            pointRadius: 3,
+            pointBackgroundColor: 'rgba(255, 187, 51, 1)',
+            borderWidth: 2,
+            yAxisID: 'y1',
+            order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#8888a0', font: { size: 11 } },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { color: '#555570', font: { size: 10 }, maxRotation: 45 },
+            grid: { color: 'rgba(42,42,58,0.5)' },
+          },
+          y: {
+            position: 'left',
+            ticks: { color: '#8888a0', font: { size: 10 } },
+            grid: { color: 'rgba(42,42,58,0.5)' },
+          },
+          y1: {
+            position: 'right',
+            min: 0,
+            max: 5,
+            ticks: { color: '#ffbb33', font: { size: 10 }, stepSize: 1 },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  let cachedFilterData = null;
+
+  async function fetchFilters() {
+    try {
+      const res = await fetch(`${API_BASE}/news/filters`);
+      cachedFilterData = await res.json();
+      rebuildDynamicFilters();
+    } catch (err) {
+      console.error('Failed to fetch filters:', err);
+    }
+  }
+
+  function rebuildDynamicFilters() {
+    if (!cachedFilterData) return;
+
+    const categoryFilter = document.getElementById('category-filter');
+    const activeCategory = categoryFilter.querySelector('.category-btn.active');
+    const activeCatValue = activeCategory ? activeCategory.dataset.category : '';
+
+    categoryFilter.innerHTML = '';
+    const allCatBtn = document.createElement('button');
+    allCatBtn.className = 'category-btn' + (activeCatValue === '' ? ' active' : '');
+    allCatBtn.dataset.category = '';
+    allCatBtn.textContent = t('all');
+    categoryFilter.appendChild(allCatBtn);
+
+    cachedFilterData.categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'category-btn' + (activeCatValue === cat ? ' active' : '');
+      btn.dataset.category = cat;
+      btn.textContent = getCategoryDisplay(cat);
+      categoryFilter.appendChild(btn);
+    });
+
+    const sourceFilter = document.getElementById('source-filter');
+    const activeSource = sourceFilter.querySelector('.source-btn.active');
+    const activeSrcValue = activeSource ? activeSource.dataset.source : '';
+
+    sourceFilter.innerHTML = '';
+    const allSrcBtn = document.createElement('button');
+    allSrcBtn.className = 'source-btn' + (activeSrcValue === '' ? ' active' : '');
+    allSrcBtn.dataset.source = '';
+    allSrcBtn.textContent = t('all');
+    sourceFilter.appendChild(allSrcBtn);
+
+    cachedFilterData.sources.forEach(src => {
+      const btn = document.createElement('button');
+      btn.className = 'source-btn' + (activeSrcValue === src ? ' active' : '');
+      btn.dataset.source = src;
+      btn.textContent = src;
+      sourceFilter.appendChild(btn);
+    });
+  }
+
+  function updateStats(total) {
+    totalCountEl.textContent = total.toLocaleString();
+  }
+
+  async function loadTodayStats() {
+    try {
+      const res = await fetch(`${API_BASE}/news?limit=1&page=1`);
+      const data = await res.json();
+      totalCountEl.textContent = data.pagination.total.toLocaleString();
+
+      const todayRes = await fetch(`${API_BASE}/news?limit=1&page=1&start_date=${new Date().toISOString().slice(0, 10)}`);
+      const todayData = await todayRes.json();
+      todayCountEl.textContent = todayData.pagination.total.toLocaleString();
+
+      const sevRes = await fetch(`${API_BASE}/news/trends?period=day&days=1`);
+      const sevData = await sevRes.json();
+      if (sevData.length > 0) {
+        avgSeverityEl.textContent = parseFloat(sevData[0].avg_severity).toFixed(1);
+      } else {
+        avgSeverityEl.textContent = '—';
+      }
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+    }
+  }
+
+  function resetAndFetch() {
+    currentPage = 1;
+    hasMore = true;
+    fetchNews(false);
+    fetchTrends();
+  }
+
+  let searchTimeout;
+  document.getElementById('search-input').addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      state.search = e.target.value.trim();
+      resetAndFetch();
+    }, 300);
+  });
+
+  document.querySelectorAll('.severity-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.severity-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.severity = btn.dataset.severity;
+      resetAndFetch();
+    });
+  });
+
+  document.getElementById('category-filter').addEventListener('click', (e) => {
+    if (e.target.classList.contains('category-btn')) {
+      document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      state.category = e.target.dataset.category;
+      resetAndFetch();
+    }
+  });
+
+  document.getElementById('source-filter').addEventListener('click', (e) => {
+    if (e.target.classList.contains('source-btn')) {
+      document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      state.source = e.target.dataset.source;
+      resetAndFetch();
+    }
+  });
+
+  document.getElementById('date-range').addEventListener('change', (e) => {
+    state.days = e.target.value;
+    resetAndFetch();
+  });
+
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.trendPeriod = btn.dataset.period;
+      fetchTrends();
+    });
+  });
+
+  loadMoreBtn.addEventListener('click', () => {
+    if (hasMore && !isLoading) {
+      currentPage++;
+      fetchNews(true);
+    }
+  });
+
+  document.getElementById('lang-switch').addEventListener('click', (e) => {
+    if (e.target.classList.contains('lang-btn')) {
+      const newLang = e.target.dataset.lang;
+      if (newLang !== getLang()) {
+        setLanguage(newLang);
+        applyI18n();
+        resetAndFetch();
+      }
+    }
+  });
+
+  const sse = new SSEClient(`${API_BASE}/events`);
+  sse.onMessage = (items) => {
+    items.forEach(item => {
+      const existing = newsFeed.querySelector(`[data-id="${item.id}"]`);
+      if (!existing) {
+        const el = createNewsItem(item);
+        newsFeed.insertBefore(el, newsFeed.firstChild);
+      }
+    });
+    loadTodayStats();
+    liveIndicator.style.color = '#00ff88';
+    setTimeout(() => {
+      liveIndicator.style.color = '';
+    }, 1000);
+  };
+
+  sse.onConnect = () => {
+    liveIndicator.querySelector('span:last-child').textContent = 'LIVE';
+  };
+
+  sse.onDisconnect = () => {
+    liveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
+  };
+
+  applyI18n();
+  fetchFilters();
+  fetchNews(false);
+  fetchTrends();
+  loadTodayStats();
+})();

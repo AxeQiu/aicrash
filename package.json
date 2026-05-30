@@ -1,0 +1,16 @@
+{
+  "name": "aicrash",
+  "version": "1.0.0",
+  "description": "AI Industry Crash News - Real-time negative news monitor",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "mysql2": "^3.11.0",
+    "dotenv": "^16.4.0",
+    "cors": "^2.8.5"
+  }
+}
