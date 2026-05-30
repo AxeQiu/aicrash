@@ -12,6 +12,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+app.use('/.well-known/acme-challenge', express.static(path.join(__dirname, '..', 'public', '.well-known', 'acme-challenge')));
+app.use('/.well-known/pki-validation', express.static(path.join(__dirname, '..', 'public', '.well-known', 'pki-validation')));
+
 app.use('/api', newsRouter);
 
 const sseClients = new Set();
