@@ -5,7 +5,8 @@ const db = require('../db');
 router.get('/news', async (req, res) => {
   try {
     const { page = 1, limit = 50, source, category, severity, search, start_date, end_date } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const limitVal = parseInt(limit, 10);
+    const offsetVal = (parseInt(page, 10) - 1) * limitVal;
 
     let where = ['1=1'];
     let params = [];
@@ -20,11 +21,12 @@ router.get('/news', async (req, res) => {
     }
     if (severity) {
       where.push('severity = ?');
-      params.push(parseInt(severity));
+      params.push(parseInt(severity, 10));
     }
     if (search) {
-      where.push('(title LIKE ? OR summary LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+      where.push('(title LIKE ? OR summary LIKE ? OR title_en LIKE ? OR summary_en LIKE ?)');
+      const s = `%${search}%`;
+      params.push(s, s, s, s);
     }
     if (start_date) {
       where.push('published_at >= ?');
@@ -38,19 +40,19 @@ router.get('/news', async (req, res) => {
     const whereClause = where.join(' AND ');
 
     const countSql = `SELECT COUNT(*) as total FROM news WHERE ${whereClause}`;
-    const [countRows] = await db.execute(countSql, params);
+    const [countRows] = await db.query(countSql, params);
     const total = countRows[0].total;
 
-    const dataSql = `SELECT * FROM news WHERE ${whereClause} ORDER BY published_at DESC LIMIT ? OFFSET ?`;
-    const [rows] = await db.execute(dataSql, [...params, parseInt(limit), offset]);
+    const dataSql = `SELECT * FROM news WHERE ${whereClause} ORDER BY published_at DESC LIMIT ${limitVal} OFFSET ${offsetVal}`;
+    const [rows] = await db.query(dataSql, params);
 
     res.json({
       data: rows,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: limitVal,
         total,
-        totalPages: Math.ceil(total / parseInt(limit)),
+        totalPages: Math.ceil(total / limitVal),
       },
     });
   } catch (err) {
@@ -65,7 +67,7 @@ router.get('/news/trends', async (req, res) => {
     const dateFormat = period === 'week' ? '%Y-%u' : '%Y-%m-%d';
 
     const sql = `
-      SELECT 
+      SELECT
         DATE_FORMAT(published_at, '${dateFormat}') AS period,
         COUNT(*) AS count,
         AVG(severity) AS avg_severity
@@ -74,7 +76,7 @@ router.get('/news/trends', async (req, res) => {
       GROUP BY period
       ORDER BY period ASC
     `;
-    const [rows] = await db.execute(sql, [parseInt(days)]);
+    const [rows] = await db.query(sql, [parseInt(days, 10)]);
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch trends:', err);
@@ -84,8 +86,8 @@ router.get('/news/trends', async (req, res) => {
 
 router.get('/news/filters', async (req, res) => {
   try {
-    const [sources] = await db.execute('SELECT DISTINCT source FROM news WHERE source IS NOT NULL ORDER BY source');
-    const [categories] = await db.execute('SELECT DISTINCT category FROM news WHERE category IS NOT NULL ORDER BY category');
+    const [sources] = await db.query('SELECT DISTINCT source FROM news WHERE source IS NOT NULL ORDER BY source');
+    const [categories] = await db.query('SELECT DISTINCT category FROM news WHERE category IS NOT NULL ORDER BY category');
     res.json({
       sources: sources.map(r => r.source),
       categories: categories.map(r => r.category),
