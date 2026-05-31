@@ -18,6 +18,7 @@ class SSEClient {
 
     this.es.onopen = () => {
       this.failCount = 0;
+      this.lastPong = Date.now();
       if (this.onConnect) this.onConnect();
       this.startHeartbeat();
     };
@@ -25,6 +26,14 @@ class SSEClient {
     this.es.addEventListener('connected', () => {
       this.lastPong = Date.now();
     });
+
+    this.es.addEventListener('ping', () => {
+      this.lastPong = Date.now();
+    });
+
+    this.es.onmessage = () => {
+      this.lastPong = Date.now();
+    };
 
     this.es.addEventListener('new_news', (event) => {
       try {

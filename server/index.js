@@ -28,7 +28,7 @@ app.get('/api/events', (req, res) => {
     Connection: 'keep-alive',
     'Access-Control-Allow-Origin': '*',
   });
-  res.write('data: {"type":"connected"}\n\n');
+  res.write('event: connected\ndata: {}\n\n');
 
   const client = { res, id: Date.now() };
   sseClients.add(client);
@@ -37,6 +37,19 @@ app.get('/api/events', (req, res) => {
     sseClients.delete(client);
   });
 });
+
+function broadcastPing() {
+  const payload = 'event: ping\ndata: {}\n\n';
+  for (const client of sseClients) {
+    try {
+      client.res.write(payload);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}
+
+setInterval(broadcastPing, 25000);
 
 function broadcastToSSE(event, data) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;

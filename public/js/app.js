@@ -121,6 +121,30 @@
     return params;
   }
 
+  function matchesFilters(item) {
+    if (item.lang !== getLang()) return false;
+    if (state.source && item.source !== state.source) return false;
+    if (state.category && item.category !== state.category) return false;
+    if (state.severity !== '') {
+      const sev = parseInt(state.severity, 10);
+      if ((item.severity ?? 1) !== sev) return false;
+    }
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      const title = (item.title || '').toLowerCase();
+      const summary = (item.summary || '').toLowerCase();
+      if (!title.includes(q) && !summary.includes(q)) return false;
+    }
+    if (state.days) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(state.days, 10));
+      startDate.setHours(0, 0, 0, 0);
+      const published = item.published_at ? new Date(item.published_at) : null;
+      if (!published || published < startDate) return false;
+    }
+    return true;
+  }
+
   async function fetchNews(append = false) {
     if (isLoading) return;
     isLoading = true;
@@ -150,8 +174,6 @@
 
       hasMore = currentPage < data.pagination.totalPages;
       loadMoreEl.style.display = hasMore ? 'block' : 'none';
-
-      updateStats(data.pagination.total);
     } catch (err) {
       console.error('Failed to fetch news:', err);
     } finally {
@@ -300,25 +322,30 @@
     });
   }
 
-  function updateStats(total) {
-    const formatted = total.toLocaleString();
-    totalCountEl.textContent = formatted;
-    mTotalCountEl.textContent = formatted;
+  function setStatText(el, value) {
+    if (el) el.textContent = value.toLocaleString();
   }
 
-  async function loadTodayStats() {
+  async function loadHeaderStats() {
     try {
-      const params = new URLSearchParams({ limit: 1, page: 1, lang: getLang() });
-      const res = await fetch(`${API_BASE}/news?${params}`);
-      const data = await res.json();
-      totalCountEl.textContent = data.pagination.total.toLocaleString();
+      const lang = getLang();
+      const baseParams = new URLSearchParams({ limit: 1, page: 1, lang });
 
-      const todayParams = new URLSearchParams({ limit: 1, page: 1, lang: getLang(), created_after: new Date().toISOString().slice(0, 10) });
+      const res = await fetch(`${API_BASE}/news?${baseParams}`);
+      const data = await res.json();
+      setStatText(totalCountEl, data.pagination.total);
+      setStatText(mTotalCountEl, data.pagination.total);
+
+      const todayParams = new URLSearchParams({
+        limit: 1,
+        page: 1,
+        lang,
+        created_after: new Date().toISOString().slice(0, 10),
+      });
       const todayRes = await fetch(`${API_BASE}/news?${todayParams}`);
       const todayData = await todayRes.json();
-      const todayFormatted = todayData.pagination.total.toLocaleString();
-      todayCountEl.textContent = todayFormatted;
-      mTodayCountEl.textContent = todayFormatted;
+      setStatText(todayCountEl, todayData.pagination.total);
+      setStatText(mTodayCountEl, todayData.pagination.total);
     } catch (err) {
       console.error('Failed to load stats:', err);
     }
@@ -395,7 +422,7 @@
         setLanguage(newLang);
         applyI18n();
         resetAndFetch();
-        loadTodayStats();
+        loadHeaderStats();
         fetchFilters();
       }
     }
@@ -403,19 +430,31 @@
 
   const sse = new SSEClient(`${API_BASE}/events`);
   sse.onMessage = (items) => {
+    let hasLangNews = false;
+
     items.forEach(item => {
       if (item.lang !== getLang()) return;
-      const existing = newsFeed.querySelector(`[data-id="${item.id}"]`);
-      if (!existing) {
-        const el = createNewsItem(item);
-        newsFeed.insertBefore(el, newsFeed.firstChild);
-      }
+      hasLangNews = true;
+      if (!matchesFilters(item)) return;
+
+      const urlKey = CSS.escape(item.url);
+      const existing = newsFeed.querySelector(`[data-url="${urlKey}"]`);
+      if (existing) return;
+
+      const emptyState = newsFeed.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+
+      const el = createNewsItem(item);
+      newsFeed.insertBefore(el, newsFeed.firstChild);
     });
-    loadTodayStats();
-    liveIndicator.style.color = '#00ff88';
-    setTimeout(() => {
-      liveIndicator.style.color = '';
-    }, 1000);
+
+    if (hasLangNews) {
+      loadHeaderStats();
+      liveIndicator.style.color = '#00ff88';
+      setTimeout(() => {
+        liveIndicator.style.color = '';
+      }, 1000);
+    }
   };
 
   sse.onConnect = () => {
@@ -434,5 +473,5 @@
   fetchFilters();
   fetchNews(false);
   fetchTrends();
-  loadTodayStats();
+  loadHeaderStats();
 })();
