@@ -4,7 +4,7 @@ const db = require('../db');
 
 router.get('/news', async (req, res) => {
   try {
-    const { page = 1, limit = 50, source, category, severity, search, start_date, end_date, lang } = req.query;
+    const { page = 1, limit = 50, source, category, severity, search, start_date, end_date, created_after, lang } = req.query;
     const limitVal = parseInt(limit, 10);
     const offsetVal = (parseInt(page, 10) - 1) * limitVal;
     const langVal = lang === 'en' ? 'en' : 'zh';
@@ -36,6 +36,10 @@ router.get('/news', async (req, res) => {
     if (end_date) {
       filterWhere.push('published_at <= ?');
       filterParams.push(end_date);
+    }
+    if (created_after) {
+      filterWhere.push('created_at >= ?');
+      filterParams.push(created_after);
     }
 
     const filterClause = filterWhere.join(' AND ');

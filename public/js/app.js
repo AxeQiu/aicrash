@@ -322,7 +322,7 @@
       const data = await res.json();
       totalCountEl.textContent = data.pagination.total.toLocaleString();
 
-      const todayParams = new URLSearchParams({ limit: 1, page: 1, lang: getLang(), start_date: new Date().toISOString().slice(0, 10) });
+      const todayParams = new URLSearchParams({ limit: 1, page: 1, lang: getLang(), created_after: new Date().toISOString().slice(0, 10) });
       const todayRes = await fetch(`${API_BASE}/news?${todayParams}`);
       const todayData = await todayRes.json();
       const todayFormatted = todayData.pagination.total.toLocaleString();
