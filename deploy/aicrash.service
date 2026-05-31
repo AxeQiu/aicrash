@@ -1,5 +1,5 @@
 [Unit]
-Description=aicrash.news - AI Industry Crash News Monitor
+Description=AICrash.news - AI Industry Crash News Monitor
 After=network.target mysql.service
 Wants=mysql.service
 
@@ -8,10 +8,10 @@ Type=simple
 User=aicrash
 Group=aicrash
 WorkingDirectory=/opt/aicrash
+EnvironmentFile=/opt/aicrash/.env
 ExecStart=/usr/bin/node server/index.js
 Restart=always
 RestartSec=5
-Environment=NODE_ENV=production
 StandardOutput=journal
 StandardError=journal
 
