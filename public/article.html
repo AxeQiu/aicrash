@@ -186,7 +186,8 @@
 
     async function loadArticle() {
       const pathParts = window.location.pathname.split('/');
-      const idOrUrl = pathParts[pathParts.length - 1];
+      let idOrUrl = pathParts[pathParts.length - 1];
+      idOrUrl = decodeURIComponent(idOrUrl);
       const lang = getLang();
 
       try {
