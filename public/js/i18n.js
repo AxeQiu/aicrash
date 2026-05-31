@@ -36,13 +36,6 @@ const i18n = {
     readOriginal: '阅读原文 →',
     backHome: '返回首页',
     backToHome: '← 返回首页',
-    categories: {
-      '裁员': '裁员',
-      '算力': '算力',
-      '安全': '安全',
-      '监管': '监管',
-      '诉讼': '诉讼',
-    },
   },
   en: {
     siteName: 'aicrash',
@@ -81,13 +74,6 @@ const i18n = {
     readOriginal: 'Read Original →',
     backHome: 'Back to Home',
     backToHome: '← Back to Home',
-    categories: {
-      '裁员': 'Layoffs',
-      '算力': 'Compute',
-      '安全': 'Safety',
-      '监管': 'Regulation',
-      '诉讼': 'Lawsuit',
-    },
   },
 };
 

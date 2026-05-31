@@ -46,16 +46,6 @@
     rebuildDynamicFilters();
   }
 
-  function getCategoryKey(cat) {
-    if (!cat) return '';
-    const lang = getLang();
-    if (lang === 'en') {
-      const map = i18n.en.categories;
-      return Object.keys(map).find(k => map[k] === cat) || cat;
-    }
-    return cat;
-  }
-
   function formatTime(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -109,9 +99,7 @@
     });
     if (state.search) params.set('search', state.search);
     if (state.source) params.set('source', state.source);
-    if (state.category) {
-      params.set('category', getCategoryKey(state.category));
-    }
+    if (state.category) params.set('category', state.category);
     if (state.severity !== '') params.set('severity', state.severity);
     if (state.days) {
       const startDate = new Date();
