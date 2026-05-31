@@ -32,6 +32,11 @@ body {
   height: 100vh;
 }
 
+body.article-page {
+  overflow: auto;
+  height: auto;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
