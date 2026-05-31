@@ -26,7 +26,10 @@
         <h3 class="meta-card-title" data-i18n="articleInfo">文章信息</h3>
         <div class="meta-item">
           <span class="meta-label" data-i18n="severityTitle">严重程度</span>
-          <span class="meta-value" id="meta-severity">-</span>
+          <span class="meta-value" id="meta-severity">
+            <span class="severity-dot-inline" id="severity-dot"></span>
+            <span id="severity-text">-</span>
+          </span>
         </div>
         <div class="meta-item">
           <span class="meta-label" data-i18n="categoryTitle">分类</span>
@@ -109,11 +112,6 @@
       });
     }
 
-    function getSeverityLabel(severity) {
-      if (severity === 0) return t('positive');
-      return '⚠️ ' + severity;
-    }
-
     function renderArticle(data) {
       articleData = data;
       const lang = getLang();
@@ -134,7 +132,16 @@
         <a href="/" class="back-to-home" data-i18n="backToHome">← 返回首页</a>
       `;
 
-      document.getElementById('meta-severity').textContent = getSeverityLabel(data.severity);
+      const severityDot = document.getElementById('severity-dot');
+      const severityText = document.getElementById('severity-text');
+      const severity = data.severity;
+      if (severity === 0) {
+        severityDot.className = 'severity-dot-inline s0';
+        severityText.textContent = t('positive');
+      } else {
+        severityDot.className = `severity-dot-inline s${severity || 1}`;
+        severityText.textContent = severity || 1;
+      }
       document.getElementById('meta-category').textContent = data.category || '-';
       document.getElementById('meta-source').textContent = data.source || '-';
       document.getElementById('meta-published').textContent = formatDate(data.published_at, lang);

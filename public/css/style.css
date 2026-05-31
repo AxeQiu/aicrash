@@ -341,6 +341,22 @@ body.article-page {
 .severity-dot.s1 { background: var(--severity-1); }
 .severity-dot.s0 { background: #00d084; }
 
+.severity-dot-inline {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.severity-dot-inline.s5 { background: var(--severity-5); }
+.severity-dot-inline.s4 { background: var(--severity-4); }
+.severity-dot-inline.s3 { background: var(--severity-3); }
+.severity-dot-inline.s2 { background: var(--severity-2); }
+.severity-dot-inline.s1 { background: var(--severity-1); }
+.severity-dot-inline.s0 { background: #00d084; }
+
 .category-filter,
 .source-filter {
   display: flex;
