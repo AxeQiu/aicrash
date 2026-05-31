@@ -21,11 +21,7 @@
   const loadingEl = document.getElementById('loading');
   const loadMoreEl = document.getElementById('load-more');
   const loadMoreBtn = document.getElementById('load-more-btn');
-  const totalCountEl = document.getElementById('total-count');
-  const todayCountEl = document.getElementById('today-count');
   const liveIndicator = document.getElementById('live-indicator');
-  const mTotalCountEl = document.getElementById('m-total-count');
-  const mTodayCountEl = document.getElementById('m-today-count');
 
   let trendChart = null;
 
@@ -308,35 +304,6 @@
       btn.textContent = src;
       sourceFilter.appendChild(btn);
     });
-  }
-
-  function setStatText(el, value) {
-    if (el) el.textContent = value.toLocaleString();
-  }
-
-  async function loadHeaderStats() {
-    try {
-      const lang = getLang();
-      const baseParams = new URLSearchParams({ limit: 1, page: 1, lang });
-
-      const res = await fetch(`${API_BASE}/news?${baseParams}`);
-      const data = await res.json();
-      setStatText(totalCountEl, data.pagination.total);
-      setStatText(mTotalCountEl, data.pagination.total);
-
-      const todayParams = new URLSearchParams({
-        limit: 1,
-        page: 1,
-        lang,
-        created_after: new Date().toISOString().slice(0, 10),
-      });
-      const todayRes = await fetch(`${API_BASE}/news?${todayParams}`);
-      const todayData = await todayRes.json();
-      setStatText(todayCountEl, todayData.pagination.total);
-      setStatText(mTodayCountEl, todayData.pagination.total);
-    } catch (err) {
-      console.error('Failed to load stats:', err);
-    }
   }
 
   function resetAndFetch() {

@@ -19,14 +19,20 @@ curl -s "$API_URL/api/news/filters?lang=zh" | head -c 200
 echo ""
 echo ""
 
+# 检查统计 API
+echo "3. 检查统计 API..."
+curl -s "$API_URL/api/news/stats?lang=zh" | head -c 200
+echo ""
+echo ""
+
 # 检查趋势 API
-echo "3. 检查趋势 API..."
+echo "4. 检查趋势 API..."
 curl -s "$API_URL/api/news/trends?days=7&lang=zh" | head -c 200
 echo ""
 echo ""
 
 # 检查 SSE 连接
-echo "4. 检查 SSE 连接（3秒超时）..."
+echo "5. 检查 SSE 连接（3秒超时）..."
 timeout 3 curl -s -N "$API_URL/api/events" | head -c 100 || echo "(SSE 连接正常，已超时)"
 echo ""
 

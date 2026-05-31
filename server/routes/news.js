@@ -114,6 +114,31 @@ router.get('/news/trends', async (req, res) => {
   }
 });
 
+router.get('/news/stats', async (req, res) => {
+  try {
+    const { lang } = req.query;
+    const langVal = lang === 'en' ? 'en' : 'zh';
+    const todayStart = new Date().toISOString().slice(0, 10);
+
+    const sql = `
+      SELECT
+        COUNT(DISTINCT url) AS total,
+        COUNT(DISTINCT CASE WHEN created_at >= ? THEN url END) AS today
+      FROM news
+      WHERE lang = ?
+    `;
+    const [rows] = await db.query(sql, [todayStart, langVal]);
+
+    res.json({
+      total: rows[0].total,
+      today: rows[0].today,
+    });
+  } catch (err) {
+    console.error('Failed to fetch stats:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 router.get('/news/filters', async (req, res) => {
   try {
     const { lang } = req.query;

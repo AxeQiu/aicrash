@@ -65,7 +65,8 @@ aicrash/
 │   │   ├── app.js          # 首页主逻辑
 │   │   ├── header.js       # Header 组件加载器
 │   │   ├── i18n.js         # 国际化
-│   │   └── sse.js          # SSE 客户端
+│   │   ├── sse.js          # SSE 客户端
+│   │   └── stats.js        # Header 统计
 │   ├── article.html         # 新闻详情页
 │   └── index.html           # 首页
 ├── server/                  # 后端代码
@@ -97,7 +98,26 @@ GET /api/news
 - `source` - 来源筛选
 - `category` - 分类筛选
 - `severity` - 严重程度 0-5
-- `days` - 时间范围（天数）
+- `start_date` / `end_date` - 发布时间范围
+- `created_after` - 入库时间下限
+
+### 获取统计数据
+
+```
+GET /api/news/stats?lang=zh
+```
+
+返回 header 展示用的全库统计（不受列表筛选影响）：
+
+```json
+{
+  "total": 1234,
+  "today": 56
+}
+```
+
+- `total` - 当前语言下去重 URL 总数
+- `today` - 当前语言下今日入库的去重 URL 数
 
 ### 获取新闻详情
 
