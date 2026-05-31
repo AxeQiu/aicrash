@@ -138,4 +138,40 @@ router.get('/news/filters', async (req, res) => {
   }
 });
 
+router.get('/news/article', async (req, res) => {
+  try {
+    const { id, lang } = req.query;
+    const langVal = lang === 'en' ? 'en' : 'zh';
+
+    let sql, params;
+    if (id) {
+      sql = `
+        SELECT n.* FROM news n
+        INNER JOIN (
+          SELECT url, MAX(created_at) AS max_created_at
+          FROM news
+          WHERE lang = ?
+          GROUP BY url
+        ) sub ON n.url = sub.url AND n.created_at = sub.max_created_at
+        WHERE n.url = ? OR n.id = ?
+        LIMIT 1
+      `;
+      params = [langVal, id, id];
+    } else {
+      return res.status(400).json({ error: 'Missing id parameter' });
+    }
+
+    const [rows] = await db.query(sql, params);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Failed to fetch article:', err);
+    res.status(500).json({ error: 'Failed to fetch article' });
+  }
+});
+
 module.exports = router;

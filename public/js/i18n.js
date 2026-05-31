@@ -30,6 +30,11 @@ const i18n = {
     minutesAgo: '分钟前',
     hoursAgo: '小时前',
     daysAgo: '天前',
+    articleInfo: '文章信息',
+    publishedAt: '发布时间',
+    addedAt: '入库时间',
+    readOriginal: '阅读原文 →',
+    backHome: '返回首页',
     categories: {
       '裁员': '裁员',
       '算力': '算力',
@@ -69,6 +74,11 @@ const i18n = {
     minutesAgo: 'm ago',
     hoursAgo: 'h ago',
     daysAgo: 'd ago',
+    articleInfo: 'Article Info',
+    publishedAt: 'Published',
+    addedAt: 'Added',
+    readOriginal: 'Read Original →',
+    backHome: 'Back to Home',
     categories: {
       '裁员': 'Layoffs',
       '算力': 'Compute',

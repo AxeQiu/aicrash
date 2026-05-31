@@ -79,10 +79,9 @@
   function createNewsItem(item) {
     const el = document.createElement('a');
     el.className = 'news-item';
-    el.href = item.url || '#';
-    el.target = '_blank';
-    el.rel = 'noopener noreferrer';
+    el.href = `/article/${encodeURIComponent(item.url)}`;
     el.dataset.id = item.id;
+    el.dataset.url = item.url;
 
     const severityBadge = item.severity === 0
       ? '<div class="severity-badge s0">✓</div>'

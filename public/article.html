@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AICrash.news - AI Crash News Monitor</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/i18n.js"></script>
+  <meta name="description" id="meta-description" content="AI industry crash monitoring and analysis">
+  <meta property="og:title" id="og-title" content="AICrash.news">
+  <meta property="og:description" id="og-description" content="AI industry crash monitoring and analysis">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="AICrash.news">
+  <meta name="twitter:card" content="summary">
+  <script type="application/ld+json" id="schema-data"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <span class="logo-icon">⚡</span>
+        <h1>AICrash<span class="logo-dot">.</span>news</h1>
+      </a>
+      <div class="header-stats">
+        <div class="stat">
+          <span class="stat-value" id="total-count">-</span>
+          <span class="stat-label" data-i18n="totalLabel">总收录</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="today-count">-</span>
+          <span class="stat-label" data-i18n="todayLabel">今日新增</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span>LIVE</span>
+        </div>
+        <div id="lang-switch" class="lang-switch">
+          <button class="lang-btn" data-lang="zh">中</button>
+          <button class="lang-btn" data-lang="en">EN</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <article class="article-content" id="article-content">
+      <div class="loading" data-i18n="loading">加载中...</div>
+    </article>
+
+    <aside class="article-sidebar">
+      <div class="article-meta-card">
+        <h3 class="meta-card-title" data-i18n="articleInfo">文章信息</h3>
+        <div class="meta-item">
+          <span class="meta-label" data-i18n="severityTitle">严重程度</span>
+          <span class="meta-value" id="meta-severity">-</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label" data-i18n="categoryTitle">分类</span>
+          <span class="meta-value" id="meta-category">-</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label" data-i18n="sourceTitle">来源</span>
+          <span class="meta-value" id="meta-source">-</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label" data-i18n="publishedAt">发布时间</span>
+          <span class="meta-value" id="meta-published">-</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label" data-i18n="addedAt">入库时间</span>
+          <span class="meta-value" id="meta-created">-</span>
+        </div>
+      </div>
+
+      <a href="#" class="read-original-btn" id="read-original" target="_blank" rel="noopener noreferrer" data-i18n="readOriginal">
+        阅读原文 →
+      </a>
+    </aside>
+  </main>
+
+  <script>
+    const API_BASE = '/api';
+    let articleData = null;
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+      });
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === getLang());
+      });
+      document.documentElement.lang = getLang() === 'zh' ? 'zh-CN' : 'en';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function formatDate(dateStr, lang) {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      return d.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function getSeverityLabel(severity) {
+      if (severity === 0) return t('positive');
+      return '⚠️ ' + severity;
+    }
+
+    function renderArticle(data) {
+      articleData = data;
+      const lang = getLang();
+      const container = document.getElementById('article-content');
+
+      document.title = `${data.title} - AICrash.news`;
+
+      const severityBadge = data.severity === 0
+        ? '<div class="severity-badge s0">✓</div>'
+        : `<div class="severity-badge s${data.severity || 1}">${data.severity || 1}</div>`;
+
+      container.innerHTML = `
+        <div class="article-header">
+          ${severityBadge}
+          <h1 class="article-title">${escapeHtml(data.title)}</h1>
+        </div>
+        ${data.summary ? `<div class="article-summary">${escapeHtml(data.summary)}</div>` : ''}
+      `;
+
+      document.getElementById('meta-severity').textContent = getSeverityLabel(data.severity);
+      document.getElementById('meta-category').textContent = data.category || '-';
+      document.getElementById('meta-source').textContent = data.source || '-';
+      document.getElementById('meta-published').textContent = formatDate(data.published_at, lang);
+      document.getElementById('meta-created').textContent = formatDate(data.created_at, lang);
+
+      const readOriginal = document.getElementById('read-original');
+      readOriginal.href = data.url || '#';
+
+      const metaDesc = document.getElementById('meta-description');
+      const ogTitle = document.getElementById('og-title');
+      const ogDesc = document.getElementById('og-description');
+      if (metaDesc) metaDesc.content = data.summary || data.title;
+      if (ogTitle) ogTitle.content = data.title;
+      if (ogDesc) ogDesc.content = data.summary || data.title;
+
+      const schemaData = document.getElementById('schema-data');
+      if (schemaData) {
+        const schema = {
+          "@context": "https://schema.org",
+          "@type": "NewsArticle",
+          "headline": data.title,
+          "description": data.summary || '',
+          "datePublished": data.published_at,
+          "dateModified": data.created_at,
+          "publisher": {
+            "@type": "Organization",
+            "name": "AICrash.news",
+            "url": window.location.origin
+          },
+          "sourceOrganization": {
+            "@type": "Organization",
+            "name": data.source || 'Unknown'
+          },
+          "articleSection": data.category || '',
+          "keywords": ['AI', 'crash', 'news', data.category || ''].filter(Boolean).join(', ')
+        };
+        if (data.url) {
+          schema.url = data.url;
+        }
+        schemaData.textContent = JSON.stringify(schema);
+      }
+    }
+
+    function showError(message) {
+      const container = document.getElementById('article-content');
+      container.innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">⚠️</div>
+          <div class="error-text">${escapeHtml(message)}</div>
+          <a href="/" class="back-home" data-i18n="backHome">返回首页</a>
+        </div>
+      `;
+      applyI18n();
+    }
+
+    async function loadArticle() {
+      const pathParts = window.location.pathname.split('/');
+      const idOrUrl = pathParts[pathParts.length - 1];
+      const lang = getLang();
+
+      try {
+        const res = await fetch(`${API_BASE}/news/article?id=${encodeURIComponent(idOrUrl)}&lang=${lang}`);
+        if (!res.ok) {
+          throw new Error(res.status === 404 ? (lang === 'zh' ? '文章不存在' : 'Article not found') : 'Failed to load article');
+        }
+        const data = await res.json();
+        renderArticle(data);
+        applyI18n();
+      } catch (err) {
+        console.error('Failed to load article:', err);
+        showError(err.message || (lang === 'zh' ? '加载失败' : 'Failed to load'));
+      }
+    }
+
+    document.getElementById('lang-switch').addEventListener('click', (e) => {
+      if (e.target.classList.contains('lang-btn')) {
+        const newLang = e.target.dataset.lang;
+        if (newLang !== getLang()) {
+          setLanguage(newLang);
+          applyI18n();
+          if (articleData) {
+            renderArticle(articleData);
+          }
+        }
+      }
+    });
+
+    applyI18n();
+    loadArticle();
+  </script>
+</body>
+</html>
