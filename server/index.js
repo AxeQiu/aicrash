@@ -10,6 +10,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.get('/article/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'article.html'));
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/api', newsRouter);

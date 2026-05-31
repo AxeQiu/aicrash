@@ -70,6 +70,15 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.logo:hover,
+.logo:visited,
+.logo:active {
+  text-decoration: none;
+  color: inherit;
 }
 
 .logo-icon {
@@ -83,7 +92,7 @@ body {
   color: var(--text-primary);
 }
 
-.logo-dot {
+.logo-accent {
   color: var(--accent);
 }
 

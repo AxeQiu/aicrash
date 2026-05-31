@@ -1,4 +1,8 @@
-(function () {
+(async function () {
+  if (!document.getElementById('news-feed')) return;
+
+  await window.headerPromise;
+
   const API_BASE = '/api';
   let currentPage = 1;
   let hasMore = true;
@@ -22,18 +26,6 @@
   const liveIndicator = document.getElementById('live-indicator');
   const mTotalCountEl = document.getElementById('m-total-count');
   const mTodayCountEl = document.getElementById('m-today-count');
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobile-menu');
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('active');
-    mobileMenu.classList.toggle('open');
-  });
-  document.addEventListener('click', (e) => {
-    if (!hamburger.contains(e.target) && !mobileMenu.contains(e.target)) {
-      hamburger.classList.remove('active');
-      mobileMenu.classList.remove('open');
-    }
-  });
 
   let trendChart = null;
 
