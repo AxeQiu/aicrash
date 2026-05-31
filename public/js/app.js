@@ -18,12 +18,83 @@
   };
 
   const newsFeed = document.getElementById('news-feed');
+  const contentEl = document.querySelector('.content');
   const loadingEl = document.getElementById('loading');
   const loadMoreEl = document.getElementById('load-more');
   const loadMoreBtn = document.getElementById('load-more-btn');
   const liveIndicator = document.getElementById('live-indicator');
 
   let trendChart = null;
+
+  const HOME_STATE_KEY = 'aicrash_home_state';
+
+  function readHomeState() {
+    try {
+      const raw = sessionStorage.getItem(HOME_STATE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveHomeState(articleUrl) {
+    try {
+      sessionStorage.setItem(HOME_STATE_KEY, JSON.stringify({
+        scrollTop: contentEl ? contentEl.scrollTop : 0,
+        currentPage,
+        state: { ...state },
+        articleUrl,
+      }));
+    } catch (err) {
+      console.error('Failed to save home scroll state:', err);
+    }
+  }
+
+  function applyFilterStateToUI(savedState) {
+    document.getElementById('search-input').value = savedState.search || '';
+    document.getElementById('date-range').value = savedState.days ?? '30';
+
+    document.querySelectorAll('.severity-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.severity === String(savedState.severity ?? ''));
+    });
+
+    const setActive = (containerId, btnClass, attr, value) => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.querySelectorAll(`.${btnClass}`).forEach(btn => {
+        btn.classList.toggle('active', (btn.dataset[attr] || '') === (value || ''));
+      });
+    };
+    setActive('category-filter', 'category-btn', 'category', savedState.category);
+    setActive('source-filter', 'source-btn', 'source', savedState.source);
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.period === (savedState.trendPeriod || 'day'));
+    });
+  }
+
+  async function loadPagesUpTo(targetPage) {
+    currentPage = 1;
+    hasMore = true;
+    await fetchNews(false);
+    while (currentPage < targetPage && hasMore) {
+      currentPage++;
+      await fetchNews(true);
+    }
+  }
+
+  function restoreHomeScroll(saved) {
+    if (!contentEl) return;
+    contentEl.scrollTop = saved.scrollTop || 0;
+    if (saved.articleUrl) {
+      const urlKey = CSS.escape(saved.articleUrl);
+      const el = newsFeed.querySelector(`[data-url="${urlKey}"]`);
+      if (el) {
+        el.classList.add('news-item-returned');
+        setTimeout(() => el.classList.remove('news-item-returned'), 2500);
+      }
+    }
+  }
 
   function applyI18n() {
     const lang = getLang();
@@ -370,6 +441,11 @@
     }
   });
 
+  newsFeed.addEventListener('click', (e) => {
+    const item = e.target.closest('.news-item');
+    if (item?.dataset.url) saveHomeState(item.dataset.url);
+  });
+
   document.getElementById('lang-switch').addEventListener('click', (e) => {
     if (e.target.classList.contains('lang-btn')) {
       const newLang = e.target.dataset.lang;
@@ -424,9 +500,24 @@
     liveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
   };
 
-  applyI18n();
-  fetchFilters();
-  fetchNews(false);
-  fetchTrends();
-  loadHeaderStats();
+  async function bootstrap() {
+    applyI18n();
+    await fetchFilters();
+
+    const saved = readHomeState();
+    if (saved?.state) {
+      Object.assign(state, saved.state);
+      applyFilterStateToUI(saved.state);
+      await loadPagesUpTo(saved.currentPage || 1);
+      requestAnimationFrame(() => restoreHomeScroll(saved));
+      sessionStorage.removeItem(HOME_STATE_KEY);
+    } else {
+      await fetchNews(false);
+    }
+
+    fetchTrends();
+    loadHeaderStats();
+  }
+
+  bootstrap();
 })();
