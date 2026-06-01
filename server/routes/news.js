@@ -5,8 +5,9 @@ const db = require('../db');
 router.get('/news', async (req, res) => {
   try {
     const { page = 1, limit = 50, source, category, severity, search, start_date, end_date, created_after, lang } = req.query;
-    const limitVal = parseInt(limit, 10);
-    const offsetVal = (parseInt(page, 10) - 1) * limitVal;
+    const limitVal = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+    const pageVal = Math.max(parseInt(page, 10) || 1, 1);
+    const offsetVal = (pageVal - 1) * limitVal;
     const langVal = lang === 'en' ? 'en' : 'zh';
 
     let filterWhere = ['1=1'];
@@ -64,14 +65,14 @@ router.get('/news', async (req, res) => {
         GROUP BY url
       ) sub ON n.url = sub.url AND n.created_at = sub.max_created_at
       ORDER BY n.created_at DESC
-      LIMIT ${limitVal} OFFSET ${offsetVal}
+      LIMIT ? OFFSET ?
     `;
-    const [rows] = await db.query(dataSql, subParams);
+    const [rows] = await db.query(dataSql, [...subParams, limitVal, offsetVal]);
 
     res.json({
       data: rows,
       pagination: {
-        page: parseInt(page, 10),
+        page: pageVal,
         limit: limitVal,
         total,
         totalPages: Math.ceil(total / limitVal),
@@ -86,7 +87,9 @@ router.get('/news', async (req, res) => {
 router.get('/news/trends', async (req, res) => {
   try {
     const { period = 'day', days = 30, lang } = req.query;
-    const dateFormat = period === 'week' ? '%Y-%u' : '%Y-%m-%d';
+    const DATE_FORMATS = { week: '%Y-%u', day: '%Y-%m-%d' };
+    const dateFormat = DATE_FORMATS[period] || DATE_FORMATS.day;
+    const daysVal = Math.min(Math.max(parseInt(days, 10) || 30, 1), 365);
     const langVal = lang === 'en' ? 'en' : 'zh';
 
     const sql = `
@@ -96,17 +99,17 @@ router.get('/news/trends', async (req, res) => {
         AVG(n.avg_severity) AS avg_severity
       FROM (
         SELECT
-          DATE_FORMAT(published_at, '${dateFormat}') AS period,
+          DATE_FORMAT(published_at, ?) AS period,
           url,
           MAX(severity) AS avg_severity
         FROM news
         WHERE lang = ? AND published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        GROUP BY url, DATE_FORMAT(published_at, '${dateFormat}')
+        GROUP BY url, DATE_FORMAT(published_at, ?)
       ) n
       GROUP BY n.period
       ORDER BY n.period ASC
     `;
-    const [rows] = await db.query(sql, [langVal, parseInt(days, 10)]);
+    const [rows] = await db.query(sql, [dateFormat, langVal, daysVal, dateFormat]);
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch trends:', err);
@@ -144,14 +147,14 @@ router.get('/news/filters', async (req, res) => {
     const { lang } = req.query;
     const langVal = lang === 'en' ? 'en' : 'zh';
 
-    const urlSubSql = `SELECT url FROM news WHERE lang = '${langVal}' GROUP BY url`;
+    const urlSubSql = `SELECT url FROM news WHERE lang = ? GROUP BY url`;
     const [sources] = await db.query(
       `SELECT DISTINCT source FROM news WHERE lang = ? AND source IS NOT NULL AND url IN (${urlSubSql}) ORDER BY source`,
-      [langVal]
+      [langVal, langVal]
     );
     const [categories] = await db.query(
       `SELECT DISTINCT category FROM news WHERE lang = ? AND category IS NOT NULL AND url IN (${urlSubSql}) ORDER BY category`,
-      [langVal]
+      [langVal, langVal]
     );
     res.json({
       sources: sources.map(r => r.source),

@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const db = require('./db');
 const newsRouter = require('./routes/news');
@@ -8,7 +10,40 @@ const newsRouter = require('./routes/news');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['https://aicrash.news', 'https://www.aicrash.news'];
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+}));
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+app.use('/api', apiLimiter);
+
+const sseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(express.json());
 
 app.get('/article/*', (req, res) => {
@@ -17,7 +52,7 @@ app.get('/article/*', (req, res) => {
 
 app.get('/sitemap.xml', async (req, res) => {
   try {
-    const baseUrl = req.query.base || 'https://aicrash.news';
+    const baseUrl = 'https://aicrash.news';
     const [rows] = await db.query(`
       SELECT n.url, MAX(n.created_at) as lastmod
       FROM news n
@@ -66,12 +101,11 @@ app.use('/api', newsRouter);
 
 const sseClients = new Set();
 
-app.get('/api/events', (req, res) => {
+app.get('/api/events', sseLimiter, (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
   });
   res.write('event: connected\ndata: {}\n\n');
 
