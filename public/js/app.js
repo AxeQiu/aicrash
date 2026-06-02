@@ -145,7 +145,7 @@
       <div class="news-meta">
         ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
         ${item.category ? `<span class="news-category">${escapeHtml(item.category)}</span>` : ''}
-        <span class="news-time">${formatTime(item.published_at)}</span>
+        <span class="news-time">${formatTime(item.created_at)}</span>
       </div>
     `;
     return el;
