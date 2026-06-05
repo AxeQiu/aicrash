@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const newsRouter = require('./routes/news');
+const { generateArticleOgImage, generateHomeOgImage } = require('./og');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,12 +19,19 @@ app.get('/article/*', (req, res) => {
 
   let html = fs.readFileSync(path.join(__dirname, '..', 'public', 'article.html'), 'utf8');
 
+  const ogImageUrl = `https://aicrash.news/api/og/article.png?id=${encodeURIComponent(articlePath)}`;
+
   const headInjection = `
   <link rel="canonical" href="${canonicalUrl}">
   <link rel="alternate" hreflang="zh" href="${canonicalUrl}">
   <link rel="alternate" hreflang="en" href="${canonicalUrl}">
   <link rel="alternate" hreflang="x-default" href="${canonicalUrl}">
-  <meta property="og:url" content="${canonicalUrl}">`;
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:image" content="${ogImageUrl}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="${ogImageUrl}">`;
 
   html = html.replace('</head>', headInjection + '\n</head>');
   res.send(html);
@@ -75,6 +83,67 @@ ${urls}
 });
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// OG Image endpoints
+app.get('/api/og/home.png', async (req, res) => {
+  try {
+    const png = await generateHomeOgImage();
+    res.header('Content-Type', 'image/png');
+    res.header('Cache-Control', 'public, max-age=86400');
+    res.send(png);
+  } catch (err) {
+    console.error('OG image generation error:', err);
+    res.status(500).send('Error generating image');
+  }
+});
+
+app.get('/api/og/article.png', async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) {
+      return res.status(400).send('Missing id parameter');
+    }
+
+    const decodedId = decodeURIComponent(id);
+    const lang = req.query.lang === 'en' ? 'en' : 'zh';
+
+    const [rows] = await db.query(`
+      SELECT n.* FROM news n
+      INNER JOIN (
+        SELECT url, MAX(created_at) AS max_created_at
+        FROM news WHERE lang = ? GROUP BY url
+      ) sub ON n.url = sub.url AND n.created_at = sub.max_created_at
+      WHERE n.url = ? OR n.id = ?
+      LIMIT 1
+    `, [lang, decodedId, decodedId]);
+
+    if (rows.length === 0) {
+      const png = await generateHomeOgImage();
+      res.header('Content-Type', 'image/png');
+      res.send(png);
+      return;
+    }
+
+    const row = rows[0];
+    const { normalizeCategoryCode, getCategoryLabel } = require('./categories');
+    const code = normalizeCategoryCode(row.category);
+    const categoryLabel = getCategoryLabel(code, lang);
+
+    const png = await generateArticleOgImage({
+      title: row.title,
+      severity: row.severity,
+      source: row.source,
+      category: categoryLabel,
+    });
+
+    res.header('Content-Type', 'image/png');
+    res.header('Cache-Control', 'public, max-age=3600');
+    res.send(png);
+  } catch (err) {
+    console.error('OG image generation error:', err);
+    res.status(500).send('Error generating image');
+  }
+});
 
 app.use('/api', newsRouter);
 

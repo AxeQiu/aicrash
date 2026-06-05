@@ -726,11 +726,25 @@
     await fetchFilters();
 
     const saved = readHomeState();
-    if (saved?.state) {
-      Object.assign(state, saved.state);
-      applyFilterStateToUI(saved.state);
-      await loadPagesUpTo(saved.currentPage || 1);
-      requestAnimationFrame(() => restoreHomeScroll(saved));
+    const skipToMonitor = window.location.hash === '#monitor';
+
+    if (skipToMonitor || saved?.state) {
+      if (saved?.state) {
+        Object.assign(state, saved.state);
+        applyFilterStateToUI(saved.state);
+        await loadPagesUpTo(saved.currentPage || 1);
+      } else {
+        await fetchNews(false);
+      }
+
+      requestAnimationFrame(() => {
+        if (skipToMonitor) {
+          const mainLayout = document.querySelector('.main-layout');
+          if (mainLayout) mainLayout.scrollIntoView({ behavior: 'auto' });
+        } else {
+          restoreHomeScroll(saved);
+        }
+      });
       sessionStorage.removeItem(HOME_STATE_KEY);
     } else {
       await fetchNews(false);
