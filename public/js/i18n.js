@@ -36,6 +36,8 @@ const i18n = {
     readOriginal: '阅读原文 →',
     backHome: '返回首页',
     backToHome: '← 返回首页',
+    viewCountTitle: '被查看次数',
+    viewsUnit: '次',
   },
   en: {
     siteName: 'aicrash',
@@ -74,6 +76,8 @@ const i18n = {
     readOriginal: 'Read Original →',
     backHome: 'Back to Home',
     backToHome: '← Back to Home',
+    viewCountTitle: 'View count',
+    viewsUnit: 'views',
   },
 };
 

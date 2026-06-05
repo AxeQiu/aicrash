@@ -27,6 +27,56 @@
   let trendChart = null;
 
   const HOME_STATE_KEY = 'aicrash_home_state';
+  const VIEWED_NEWS_KEY = 'aicrash_viewed_news';
+  const VIEW_COUNT_KEY = 'aicrash_view_counts';
+
+  function getViewedSet() {
+    try {
+      const raw = localStorage.getItem(VIEWED_NEWS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function getViewCount(url) {
+    if (!url) return 0;
+    const counts = (() => {
+      try {
+        const raw = localStorage.getItem(VIEW_COUNT_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })();
+    return counts[url] || 0;
+  }
+
+  function markViewed(url) {
+    if (!url) return;
+    const viewed = getViewedSet();
+    if (viewed[url]) return;
+    viewed[url] = true;
+    try {
+      localStorage.setItem(VIEWED_NEWS_KEY, JSON.stringify(viewed));
+    } catch (err) {
+      console.error('Failed to save viewed set:', err);
+    }
+    const counts = (() => {
+      try {
+        const raw = localStorage.getItem(VIEW_COUNT_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })();
+    counts[url] = (counts[url] || 0) + 1;
+    try {
+      localStorage.setItem(VIEW_COUNT_KEY, JSON.stringify(counts));
+    } catch (err) {
+      console.error('Failed to save view count:', err);
+    }
+  }
 
   function readHomeState() {
     try {
@@ -128,7 +178,8 @@
   function createNewsItem(item) {
     const el = document.createElement('a');
     const sev = item.severity === 0 ? 0 : (item.severity || 1);
-    el.className = `news-item s${sev}`;
+    const isViewed = !!getViewedSet()[item.url];
+    el.className = `news-item s${sev}${isViewed ? ' read' : ''}`;
     el.href = `/article/${encodeURIComponent(item.url)}`;
     el.dataset.id = item.id;
     el.dataset.url = item.url;
@@ -137,16 +188,27 @@
       ? '<div class="severity-badge s0">✓</div>'
       : `<div class="severity-badge s${item.severity || 1}">${item.severity || 1}</div>`;
 
+    const viewCount = getViewCount(item.url);
+
     el.innerHTML = `
       <div class="news-item-header">
         ${severityBadge}
         <div class="news-title">${escapeHtml(item.title)}</div>
       </div>
       ${item.summary ? `<div class="news-summary">${escapeHtml(item.summary)}</div>` : ''}
-      <div class="news-meta">
-        ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
-        ${item.category ? `<span class="news-category">${escapeHtml(item.category)}</span>` : ''}
-        <span class="news-time" data-created-at="${item.created_at}">${formatTime(item.created_at)}</span>
+      <div class="news-item-footer">
+        <div class="news-meta">
+          ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
+          ${item.category ? `<span class="news-category">${escapeHtml(item.category)}</span>` : ''}
+          <span class="news-time" data-created-at="${item.created_at}">${formatTime(item.created_at)}</span>
+        </div>
+        <div class="news-view-count" title="${t('viewCountTitle')}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span class="view-count-number">${viewCount}</span>
+        </div>
       </div>
     `;
     return el;
@@ -366,14 +428,18 @@
     const allSrcBtn = document.createElement('button');
     allSrcBtn.className = 'source-btn' + (activeSrcValue === '' ? ' active' : '');
     allSrcBtn.dataset.source = '';
-    allSrcBtn.textContent = t('all');
+    allSrcBtn.innerHTML = `<span class="source-name">${t('all')}</span>` +
+      (cachedFilterData.sourcesTotal
+        ? `<span class="source-count">${cachedFilterData.sourcesTotal}</span>`
+        : '');
     sourceFilter.appendChild(allSrcBtn);
 
     cachedFilterData.sources.forEach(src => {
       const btn = document.createElement('button');
-      btn.className = 'source-btn' + (activeSrcValue === src ? ' active' : '');
-      btn.dataset.source = src;
-      btn.textContent = src;
+      btn.className = 'source-btn' + (activeSrcValue === src.name ? ' active' : '');
+      btn.dataset.source = src.name;
+      btn.innerHTML = `<span class="source-name">${escapeHtml(src.name)}</span>` +
+        `<span class="source-count">${src.count}</span>`;
       sourceFilter.appendChild(btn);
     });
   }
@@ -404,19 +470,21 @@
   });
 
   document.getElementById('category-filter').addEventListener('click', (e) => {
-    if (e.target.classList.contains('category-btn')) {
+    const btn = e.target.closest('.category-btn');
+    if (btn) {
       document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      state.category = e.target.dataset.category;
+      btn.classList.add('active');
+      state.category = btn.dataset.category;
       resetAndFetch();
     }
   });
 
   document.getElementById('source-filter').addEventListener('click', (e) => {
-    if (e.target.classList.contains('source-btn')) {
+    const btn = e.target.closest('.source-btn');
+    if (btn) {
       document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      state.source = e.target.dataset.source;
+      btn.classList.add('active');
+      state.source = btn.dataset.source;
       resetAndFetch();
     }
   });
@@ -444,7 +512,13 @@
 
   newsFeed.addEventListener('click', (e) => {
     const item = e.target.closest('.news-item');
-    if (item?.dataset.url) saveHomeState(item.dataset.url);
+    if (item?.dataset.url) {
+      markViewed(item.dataset.url);
+      item.classList.add('read');
+      const viewEl = item.querySelector('.news-view-count .view-count-number');
+      if (viewEl) viewEl.textContent = getViewCount(item.dataset.url);
+      saveHomeState(item.dataset.url);
+    }
   });
 
   document.getElementById('lang-switch').addEventListener('click', (e) => {

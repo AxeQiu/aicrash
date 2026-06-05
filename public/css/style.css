@@ -375,6 +375,10 @@ body.article-page {
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .category-btn:hover,
@@ -386,6 +390,31 @@ body.article-page {
 .category-btn.active,
 .source-btn.active {
   background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.source-btn .source-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-btn .source-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 8px;
+  min-width: 22px;
+  text-align: center;
+}
+
+.source-btn.active .source-count {
+  background: rgba(255, 59, 59, 0.15);
   color: var(--accent);
 }
 
@@ -453,6 +482,21 @@ body.article-page {
 .news-item-returned {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-dim);
+}
+
+.news-item.read {
+  opacity: 0.6;
+}
+
+.news-item.read .news-title {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.news-item.read:hover {
+  transform: none;
+  border-color: var(--border);
+  background: var(--bg-card);
 }
 
 /* News item border color matches severity */
@@ -531,6 +575,34 @@ body.article-page {
 
 .news-time {
   margin-left: auto;
+}
+
+.news-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.news-view-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+  pointer-events: none;
+}
+
+.news-view-count svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .load-more {
@@ -682,8 +754,7 @@ body.article-page {
 }
 
 .back-to-home {
-  align-self: flex-end;
-  margin-top: 16px;
+  margin-top: 0;
   padding: 8px 16px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -697,6 +768,35 @@ body.article-page {
 .back-to-home:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.article-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.article-view-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  user-select: none;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.article-view-count svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .article-header {

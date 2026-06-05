@@ -145,8 +145,17 @@ router.get('/news/filters', async (req, res) => {
     const langVal = lang === 'en' ? 'en' : 'zh';
 
     const urlSubSql = `SELECT url FROM news WHERE lang = '${langVal}' GROUP BY url`;
-    const [sources] = await db.query(
-      `SELECT DISTINCT source FROM news WHERE lang = ? AND source IS NOT NULL AND url IN (${urlSubSql}) ORDER BY source`,
+    const [sourceRows] = await db.query(
+      `SELECT source, COUNT(DISTINCT url) AS count FROM news
+       WHERE lang = ? AND source IS NOT NULL AND url IN (${urlSubSql})
+       GROUP BY source
+       ORDER BY count DESC, source ASC
+       LIMIT 10`,
+      [langVal]
+    );
+    const [{ total: sourcesTotal }] = await db.query(
+      `SELECT COUNT(DISTINCT source) AS total FROM news
+       WHERE lang = ? AND source IS NOT NULL AND url IN (${urlSubSql})`,
       [langVal]
     );
     const [categories] = await db.query(
@@ -154,7 +163,8 @@ router.get('/news/filters', async (req, res) => {
       [langVal]
     );
     res.json({
-      sources: sources.map(r => r.source),
+      sources: sourceRows.map(r => ({ name: r.source, count: r.count })),
+      sourcesTotal,
       categories: categories.map(r => r.category),
     });
   } catch (err) {
