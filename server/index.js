@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const newsRouter = require('./routes/news');
 
@@ -12,7 +13,20 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/article/*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'article.html'));
+  const articlePath = req.path.replace(/^\/article\//, '');
+  const canonicalUrl = `https://aicrash.news/article/${encodeURIComponent(articlePath)}`;
+
+  let html = fs.readFileSync(path.join(__dirname, '..', 'public', 'article.html'), 'utf8');
+
+  const headInjection = `
+  <link rel="canonical" href="${canonicalUrl}">
+  <link rel="alternate" hreflang="zh" href="${canonicalUrl}">
+  <link rel="alternate" hreflang="en" href="${canonicalUrl}">
+  <link rel="alternate" hreflang="x-default" href="${canonicalUrl}">
+  <meta property="og:url" content="${canonicalUrl}">`;
+
+  html = html.replace('</head>', headInjection + '\n</head>');
+  res.send(html);
 });
 
 app.get('/sitemap.xml', async (req, res) => {
