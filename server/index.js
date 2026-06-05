@@ -13,15 +13,40 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.get('/article/*', (req, res) => {
+const { normalizeCategoryCode, getCategoryLabel } = require('./categories');
+
+app.get('/article/*', async (req, res) => {
   const articlePath = req.path.replace(/^\/article\//, '');
+  const decodedPath = decodeURIComponent(articlePath);
   const canonicalUrl = `https://aicrash.news/article/${encodeURIComponent(articlePath)}`;
+  const ogImageUrl = `https://aicrash.news/api/og/article.png?id=${encodeURIComponent(articlePath)}`;
 
   let html = fs.readFileSync(path.join(__dirname, '..', 'public', 'article.html'), 'utf8');
 
-  const ogImageUrl = `https://aicrash.news/api/og/article.png?id=${encodeURIComponent(articlePath)}`;
+  // SSR: fetch article from DB and inject content into HTML
+  let article = null;
+  try {
+    const [rows] = await db.query(`
+      SELECT n.* FROM news n
+      INNER JOIN (
+        SELECT url, MAX(created_at) AS max_created_at
+        FROM news
+        WHERE lang = 'zh'
+        GROUP BY url
+      ) sub ON n.url = sub.url AND n.created_at = sub.max_created_at
+      WHERE n.url = ? OR n.id = ?
+      LIMIT 1
+    `, [decodedPath, decodedPath]);
 
-  const headInjection = `
+    if (rows.length > 0) {
+      article = rows[0];
+    }
+  } catch (err) {
+    console.error('SSR article fetch error:', err);
+  }
+
+  // Build head injection (canonical, hreflang, og tags)
+  let headInjection = `
   <link rel="canonical" href="${canonicalUrl}">
   <link rel="alternate" hreflang="zh" href="${canonicalUrl}">
   <link rel="alternate" hreflang="en" href="${canonicalUrl}">
@@ -32,6 +57,116 @@ app.get('/article/*', (req, res) => {
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="${ogImageUrl}">`;
+
+  if (article) {
+    const code = normalizeCategoryCode(article.category);
+    const categoryLabel = getCategoryLabel(code, 'zh');
+    const severity = article.severity || 1;
+    const severityBadge = article.severity === 0
+      ? '<div class="severity-badge s0">✓</div>'
+      : `<div class="severity-badge s${severity}">${severity}</div>`;
+    const severityDotClass = article.severity === 0 ? 's0' : `s${severity}`;
+    const severityText = article.severity === 0 ? '正面' : severity;
+    const publishedStr = article.published_at ? new Date(article.published_at).toLocaleString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+    const createdStr = article.created_at ? new Date(article.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
+    const escapeHtml = (str) => {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+
+    // Remove existing title and meta tags that SSR will replace
+    html = html.replace(/<title>[^<]*<\/title>/, '');
+    html = html.replace(/<meta name="description"[^>]*>/, '');
+    html = html.replace(/<meta property="og:title"[^>]*>/, '');
+    html = html.replace(/<meta property="og:description"[^>]*>/, '');
+    html = html.replace(/<script type="application\/ld\+json"[^>]*><\/script>/, '');
+
+    // Inject meta tags with article data
+    headInjection += `
+  <title>${escapeHtml(article.title)} - AICrash.news</title>
+  <meta name="description" content="${escapeHtml(article.summary || article.title)}">
+  <meta property="og:title" content="${escapeHtml(article.title)}">
+  <meta property="og:description" content="${escapeHtml(article.summary || article.title)}">`;
+
+    // Inject JSON-LD structured data
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "headline": article.title,
+      "description": article.summary || '',
+      "datePublished": article.published_at || undefined,
+      "dateModified": article.created_at || undefined,
+      "publisher": {
+        "@type": "Organization",
+        "name": "AICrash.news",
+        "url": "https://aicrash.news"
+      },
+      "sourceOrganization": {
+        "@type": "Organization",
+        "name": article.source || 'Unknown'
+      },
+      "articleSection": categoryLabel,
+      "keywords": ['AI', 'crash', 'news', categoryLabel].filter(Boolean).join(', '),
+    };
+    if (article.url) schema.url = article.url;
+
+    headInjection += `
+  <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+
+    // Inject visible SSR content into the article-content div
+    const ssrContent = `
+    <div class="article-header">
+      ${severityBadge}
+      <h1 class="article-title">${escapeHtml(article.title)}</h1>
+    </div>
+    ${article.summary ? `<div class="article-summary">${escapeHtml(article.summary)}</div>` : ''}
+    <div class="article-footer">
+      <div class="article-view-count" id="article-view-count">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        <span class="view-count-number">0</span>
+      </div>
+      <a href="/#monitor" class="back-to-home" data-i18n="backToHome">← 返回首页</a>
+    </div>`;
+
+    html = html.replace(
+      /<div class="loading"[^>]*data-i18n="loading"[^>]*>.*?<\/div>/,
+      ssrContent
+    );
+
+    // Inject sidebar meta values
+    html = html.replace(
+      /<span class="severity-dot-inline" id="severity-dot"><\/span>/,
+      `<span class="severity-dot-inline ${severityDotClass}" id="severity-dot"></span>`
+    );
+    html = html.replace(
+      /<span id="severity-text">-<\/span>/,
+      `<span id="severity-text">${severityText}</span>`
+    );
+    html = html.replace(
+      /<span class="meta-value" id="meta-category">-<\/span>/,
+      `<span class="meta-value" id="meta-category">${escapeHtml(categoryLabel)}</span>`
+    );
+    html = html.replace(
+      /<span class="meta-value" id="meta-source">-<\/span>/,
+      `<span class="meta-value" id="meta-source">${escapeHtml(article.source || '-')}</span>`
+    );
+    html = html.replace(
+      /<span class="meta-value" id="meta-published">-<\/span>/,
+      `<span class="meta-value" id="meta-published">${publishedStr}</span>`
+    );
+    html = html.replace(
+      /<span class="meta-value" id="meta-created">-<\/span>/,
+      `<span class="meta-value" id="meta-created">${createdStr}</span>`
+    );
+    html = html.replace(
+      /<a href="#" class="read-original-btn"/,
+      `<a href="${escapeHtml(article.url || '#')}" class="read-original-btn"`
+    );
+  }
 
   html = html.replace('</head>', headInjection + '\n</head>');
   res.send(html);
