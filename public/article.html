@@ -187,7 +187,7 @@
         severityDot.className = `severity-dot-inline s${severity || 1}`;
         severityText.textContent = severity || 1;
       }
-      document.getElementById('meta-category').textContent = data.category || '-';
+      document.getElementById('meta-category').textContent = data.category_label || data.category || '-';
       document.getElementById('meta-source').textContent = data.source || '-';
       document.getElementById('meta-published').textContent = formatDate(data.published_at, lang);
       document.getElementById('meta-created').textContent = formatDate(data.created_at, lang);

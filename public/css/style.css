@@ -393,7 +393,8 @@ body.article-page {
   color: var(--accent);
 }
 
-.source-btn .source-name {
+.source-btn .source-name,
+.category-btn .category-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -401,7 +402,8 @@ body.article-page {
   white-space: nowrap;
 }
 
-.source-btn .source-count {
+.source-btn .source-count,
+.category-btn .category-count {
   flex-shrink: 0;
   font-size: 11px;
   color: var(--text-muted);
@@ -413,7 +415,8 @@ body.article-page {
   text-align: center;
 }
 
-.source-btn.active .source-count {
+.source-btn.active .source-count,
+.category-btn.active .category-count {
   background: rgba(255, 59, 59, 0.15);
   color: var(--accent);
 }

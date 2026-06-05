@@ -1,6 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { normalizeCategoryCode, getCategoryLabel, listCategories } = require('../categories');
+
+const LEGACY_NAMES_BY_CODE = {
+  '1': ['产业格局', 'industry', 'industry landscape'],
+  '2': ['商业与财务', '算力', 'compute', 'business', 'finance', '商业', 'business & finance'],
+  '3': ['安全与隐私', '安全', 'safety', 'privacy', '安全', 'safety & privacy'],
+  '4': ['就业与经济', '裁员', 'layoffs', 'economy', 'employment', '就业', 'employment & economy'],
+  '5': ['技术风险', '技术', 'tech', 'technical', 'technical risk'],
+  '6': ['监管与政策', '监管', 'regulation', 'policy', '诉讼', 'lawsuit', 'litigation', '监管与政策', 'regulation & policy'],
+  '7': ['社会影响', '社会', 'society', 'social', 'social impact'],
+  '0': ['其他', 'other', 'misc', 'miscellaneous'],
+};
+
+function legacyNameListForCode(code) {
+  return LEGACY_NAMES_BY_CODE[code] || [];
+}
 
 router.get('/news', async (req, res) => {
   try {
@@ -17,8 +33,15 @@ router.get('/news', async (req, res) => {
       filterParams.push(source);
     }
     if (category) {
-      filterWhere.push('category = ?');
-      filterParams.push(category);
+      const categoryCode = normalizeCategoryCode(category);
+      filterWhere.push(`(
+        category = ?
+        OR LOWER(IFNULL(category, '')) = LOWER(?)
+        OR LOWER(IFNULL(category, '')) IN (${legacyNameListForCode(categoryCode).map(() => '?').join(',') || 'NULL'})
+      )`);
+      filterParams.push(categoryCode);
+      filterParams.push(categoryCode);
+      filterParams.push(...legacyNameListForCode(categoryCode));
     }
     if (severity !== undefined && severity !== '') {
       filterWhere.push('severity = ?');
@@ -68,8 +91,17 @@ router.get('/news', async (req, res) => {
     `;
     const [rows] = await db.query(dataSql, subParams);
 
+    const data = rows.map(r => {
+      const code = normalizeCategoryCode(r.category);
+      return {
+        ...r,
+        category: code,
+        category_label: getCategoryLabel(code, langVal),
+      };
+    });
+
     res.json({
-      data: rows,
+      data,
       pagination: {
         page: parseInt(page, 10),
         limit: limitVal,
@@ -158,14 +190,28 @@ router.get('/news/filters', async (req, res) => {
        WHERE lang = ? AND source IS NOT NULL AND url IN (${urlSubSql})`,
       [langVal]
     );
-    const [categories] = await db.query(
-      `SELECT DISTINCT category FROM news WHERE lang = ? AND category IS NOT NULL AND url IN (${urlSubSql}) ORDER BY category`,
+
+    const [categoryRows] = await db.query(
+      `SELECT category, COUNT(DISTINCT url) AS count FROM news
+       WHERE lang = ? AND category IS NOT NULL AND url IN (${urlSubSql})
+       GROUP BY category`,
       [langVal]
     );
+    const codeCounts = {};
+    for (const r of categoryRows) {
+      const code = normalizeCategoryCode(r.category);
+      codeCounts[code] = (codeCounts[code] || 0) + r.count;
+    }
+    const categories = listCategories(langVal).map(c => ({
+      code: c.code,
+      name: c.name,
+      count: codeCounts[c.code] || 0,
+    }));
+
     res.json({
       sources: sourceRows.map(r => ({ name: r.source, count: r.count })),
       sourcesTotal,
-      categories: categories.map(r => r.category),
+      categories,
     });
   } catch (err) {
     console.error('Failed to fetch filters:', err);
@@ -202,7 +248,13 @@ router.get('/news/article', async (req, res) => {
       return res.status(404).json({ error: 'Article not found' });
     }
 
-    res.json(rows[0]);
+    const row = rows[0];
+    const code = normalizeCategoryCode(row.category);
+    res.json({
+      ...row,
+      category: code,
+      category_label: getCategoryLabel(code, langVal),
+    });
   } catch (err) {
     console.error('Failed to fetch article:', err);
     res.status(500).json({ error: 'Failed to fetch article' });

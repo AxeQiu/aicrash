@@ -199,7 +199,7 @@
       <div class="news-item-footer">
         <div class="news-meta">
           ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
-          ${item.category ? `<span class="news-category">${escapeHtml(item.category)}</span>` : ''}
+          ${item.category_label ? `<span class="news-category">${escapeHtml(item.category_label)}</span>` : ''}
           <span class="news-time" data-created-at="${item.created_at}">${formatTime(item.created_at)}</span>
         </div>
         <div class="news-view-count" title="${t('viewCountTitle')}">
@@ -409,14 +409,17 @@
     const allCatBtn = document.createElement('button');
     allCatBtn.className = 'category-btn' + (activeCatValue === '' ? ' active' : '');
     allCatBtn.dataset.category = '';
-    allCatBtn.textContent = t('all');
+    const allCatTotal = cachedFilterData.categories.reduce((sum, c) => sum + (c.count || 0), 0);
+    allCatBtn.innerHTML = `<span class="category-name">${t('all')}</span>` +
+      `<span class="category-count">${allCatTotal}</span>`;
     categoryFilter.appendChild(allCatBtn);
 
     cachedFilterData.categories.forEach(cat => {
       const btn = document.createElement('button');
-      btn.className = 'category-btn' + (activeCatValue === cat ? ' active' : '');
-      btn.dataset.category = cat;
-      btn.textContent = cat;
+      btn.className = 'category-btn' + (activeCatValue === cat.code ? ' active' : '');
+      btn.dataset.category = cat.code;
+      btn.innerHTML = `<span class="category-name">${escapeHtml(cat.name)}</span>` +
+        `<span class="category-count">${cat.count || 0}</span>`;
       categoryFilter.appendChild(btn);
     });
 
