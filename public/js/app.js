@@ -127,7 +127,8 @@
 
   function createNewsItem(item) {
     const el = document.createElement('a');
-    el.className = 'news-item';
+    const sev = item.severity === 0 ? 0 : (item.severity || 1);
+    el.className = `news-item s${sev}`;
     el.href = `/article/${encodeURIComponent(item.url)}`;
     el.dataset.id = item.id;
     el.dataset.url = item.url;

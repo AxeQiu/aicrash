@@ -455,6 +455,14 @@ body.article-page {
   box-shadow: 0 0 0 1px var(--accent-dim);
 }
 
+/* News item border color matches severity */
+.news-item.s5 { border-color: var(--severity-5); }
+.news-item.s4 { border-color: var(--severity-4); }
+.news-item.s3 { border-color: var(--severity-3); }
+.news-item.s2 { border-color: var(--severity-2); }
+.news-item.s1 { border-color: var(--severity-1); }
+.news-item.s0 { border-color: #00d084; }
+
 .news-item-header {
   display: flex;
   align-items: flex-start;
