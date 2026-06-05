@@ -145,7 +145,7 @@
       <div class="news-meta">
         ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
         ${item.category ? `<span class="news-category">${escapeHtml(item.category)}</span>` : ''}
-        <span class="news-time">${formatTime(item.created_at)}</span>
+        <span class="news-time" data-created-at="${item.created_at}">${formatTime(item.created_at)}</span>
       </div>
     `;
     return el;
@@ -518,6 +518,15 @@
     fetchTrends();
     loadHeaderStats();
   }
+
+  setInterval(() => {
+    document.querySelectorAll('.news-time[data-created-at]').forEach(el => {
+      const createdAt = el.dataset.createdAt;
+      if (createdAt) {
+        el.textContent = formatTime(createdAt);
+      }
+    });
+  }, 60000);
 
   bootstrap();
 })();
