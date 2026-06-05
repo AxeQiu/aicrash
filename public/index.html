@@ -17,6 +17,45 @@
   <script src="/js/chart.umd.min.js"></script>
 </head>
 <body>
+  <div class="hero-section">
+    <canvas id="hero-canvas"></canvas>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        <span class="hero-badge-text" data-i18n="heroBadge">MONITORING ACTIVE</span>
+      </div>
+      <h2 class="hero-title">
+        <span class="hero-title-prefix">&gt;_</span>
+        <span class="hero-title-text" data-i18n="heroTitle">AI Industry Crash Monitor</span>
+      </h2>
+      <div class="hero-typewriter">
+        <span class="hero-typewriter-prefix">$</span>
+        <span id="hero-typewriter-text"></span>
+        <span class="hero-cursor">|</span>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="hero-total">—</span>
+          <span class="hero-stat-label" data-i18n="totalLabel">总收录</span>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="hero-today">—</span>
+          <span class="hero-stat-label" data-i18n="todayLabel">今日新增</span>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="hero-severity">—</span>
+          <span class="hero-stat-label" data-i18n="heroAvgSeverity">平均严重度</span>
+        </div>
+      </div>
+      <button class="hero-scroll-btn" id="hero-scroll-btn" data-i18n="heroScrollDown">
+        ▼ 进入监控台
+      </button>
+    </div>
+  </div>
+
   <div class="main-layout">
     <aside class="sidebar">
       <div class="filter-section">

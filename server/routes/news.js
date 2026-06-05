@@ -155,15 +155,17 @@ router.get('/news/stats', async (req, res) => {
     const sql = `
       SELECT
         COUNT(DISTINCT url) AS total,
-        COUNT(DISTINCT CASE WHEN created_at >= ? THEN url END) AS today
+        COUNT(DISTINCT CASE WHEN created_at >= ? THEN url END) AS today,
+        (SELECT AVG(severity) FROM news WHERE lang = ? AND severity > 0) AS avg_severity
       FROM news
       WHERE lang = ?
     `;
-    const [rows] = await db.query(sql, [todayStart, langVal]);
+    const [rows] = await db.query(sql, [todayStart, langVal, langVal]);
 
     res.json({
       total: rows[0].total,
       today: rows[0].today,
+      avg_severity: rows[0].avg_severity ? Math.round(rows[0].avg_severity * 10) / 10 : null,
     });
   } catch (err) {
     console.error('Failed to fetch stats:', err);

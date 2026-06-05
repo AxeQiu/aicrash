@@ -38,6 +38,10 @@ const i18n = {
     backToHome: '← 返回首页',
     viewCountTitle: '被查看次数',
     viewsUnit: '次',
+    heroBadge: 'MONITORING ACTIVE',
+    heroTitle: 'AI Industry Crash Monitor',
+    heroAvgSeverity: '平均严重度',
+    heroScrollDown: '▼ 进入监控台',
   },
   en: {
     siteName: 'aicrash',
@@ -78,6 +82,10 @@ const i18n = {
     backToHome: '← Back to Home',
     viewCountTitle: 'View count',
     viewsUnit: 'views',
+    heroBadge: 'MONITORING ACTIVE',
+    heroTitle: 'AI Industry Crash Monitor',
+    heroAvgSeverity: 'Avg Severity',
+    heroScrollDown: '▼ Enter Console',
   },
 };
 

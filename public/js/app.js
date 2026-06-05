@@ -533,6 +533,8 @@
         resetAndFetch();
         loadHeaderStats();
         fetchFilters();
+        loadHeroStats();
+        if (window._resetHeroTypewriter) window._resetHeroTypewriter();
       }
     }
   });
@@ -577,6 +579,147 @@
   sse.onDisconnect = () => {
     liveIndicator.querySelector('span:last-child').textContent = 'OFFLINE';
   };
+
+  // ===== Hero Section Logic =====
+  const heroCanvas = document.getElementById('hero-canvas');
+  const heroTypewriterEl = document.getElementById('hero-typewriter-text');
+  const heroScrollBtn = document.getElementById('hero-scroll-btn');
+
+  function initHeroCanvas() {
+    if (!heroCanvas) return;
+    const ctx = heroCanvas.getContext('2d');
+    let cols, drops;
+    const fontSize = 14;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*<>{}[]';
+
+    function resize() {
+      heroCanvas.width = heroCanvas.offsetWidth;
+      heroCanvas.height = heroCanvas.offsetHeight;
+      cols = Math.floor(heroCanvas.width / fontSize);
+      drops = Array(cols).fill(1);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    function draw() {
+      ctx.fillStyle = 'rgba(10, 10, 15, 0.05)';
+      ctx.fillRect(0, 0, heroCanvas.width, heroCanvas.height);
+      ctx.fillStyle = 'rgba(255, 59, 59, 0.15)';
+      ctx.font = fontSize + 'px Courier New';
+
+      for (let i = 0; i < cols; i++) {
+        const char = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > heroCanvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  function getTypewriterLines() {
+    const lang = getLang();
+    return lang === 'zh'
+      ? [
+          '正在扫描 AI 行业异常信号...',
+          '检测到 3 起严重事故',
+          'OpenAI 发布紧急安全公告',
+          '自动驾驶系统出现致命故障',
+          'AI 生成内容引发版权诉讼',
+          '数据泄露影响 200 万用户',
+        ]
+      : [
+          'Scanning AI industry anomalies...',
+          '3 critical incidents detected',
+          'OpenAI issues emergency safety bulletin',
+          'Autonomous driving system fatal failure',
+          'AI-generated content sparks copyright lawsuit',
+          'Data breach affects 2M users',
+        ];
+  }
+
+  let typewriterTimer = null;
+
+  function initHeroTypewriter() {
+    if (!heroTypewriterEl) return;
+
+    let lines = getTypewriterLines();
+    let lineIdx = 0;
+    let charIdx = 0;
+    let isDeleting = false;
+
+    function tick() {
+      const currentLine = lines[lineIdx];
+
+      if (!isDeleting) {
+        heroTypewriterEl.textContent = currentLine.substring(0, charIdx + 1);
+        charIdx++;
+        if (charIdx >= currentLine.length) {
+          isDeleting = true;
+          typewriterTimer = setTimeout(tick, 2000);
+          return;
+        }
+      } else {
+        heroTypewriterEl.textContent = currentLine.substring(0, charIdx - 1);
+        charIdx--;
+        if (charIdx <= 0) {
+          isDeleting = false;
+          lineIdx = (lineIdx + 1) % lines.length;
+          typewriterTimer = setTimeout(tick, 500);
+          return;
+        }
+      }
+
+      typewriterTimer = setTimeout(tick, isDeleting ? 30 : 60);
+    }
+
+    typewriterTimer = setTimeout(tick, 1000);
+
+    window._resetHeroTypewriter = function () {
+      if (typewriterTimer) clearTimeout(typewriterTimer);
+      lines = getTypewriterLines();
+      lineIdx = 0;
+      charIdx = 0;
+      isDeleting = false;
+      heroTypewriterEl.textContent = '';
+      typewriterTimer = setTimeout(tick, 300);
+    };
+  }
+
+  async function loadHeroStats() {
+    try {
+      const res = await fetch(`/api/news/stats?lang=${getLang()}`);
+      if (!res.ok) return;
+      const { total, today, avg_severity } = await res.json();
+
+      const heroTotal = document.getElementById('hero-total');
+      const heroToday = document.getElementById('hero-today');
+      const heroSeverity = document.getElementById('hero-severity');
+
+      if (heroTotal) heroTotal.textContent = total.toLocaleString();
+      if (heroToday) heroToday.textContent = today.toLocaleString();
+      if (heroSeverity) heroSeverity.textContent = avg_severity ? avg_severity.toFixed(1) : '—';
+    } catch (err) {
+      console.error('Failed to load hero stats:', err);
+    }
+  }
+
+  if (heroScrollBtn) {
+    heroScrollBtn.addEventListener('click', () => {
+      const mainLayout = document.querySelector('.main-layout');
+      if (mainLayout) {
+        mainLayout.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  }
+
+  initHeroCanvas();
+  initHeroTypewriter();
+  loadHeroStats();
 
   async function bootstrap() {
     applyI18n();
