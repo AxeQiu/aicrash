@@ -1230,6 +1230,17 @@ body:not(.article-page) .main-layout {
   .hero-stat-divider {
     height: 30px;
   }
+  /* Mobile: hero + main-layout normal flow, no sticky */
+  body:not(.article-page) .main-layout {
+    position: relative;
+    top: auto;
+    height: auto;
+    min-height: calc(100vh - 60px);
+  }
+  body:not(.article-page) .main-layout .news-list {
+    height: auto;
+    min-height: 60vh;
+  }
 }
 
 @media (max-width: 600px) {
