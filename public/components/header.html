@@ -30,13 +30,38 @@
   </div>
   <div class="mobile-menu" id="mobile-menu">
     <div class="mobile-menu-content">
-      <div class="mobile-stat">
-        <span class="stat-value" id="m-total-count">—</span>
-        <span class="stat-label" data-i18n="totalLabel">总收录</span>
+      <div class="mobile-stats">
+        <div class="mobile-stat">
+          <span class="stat-value" id="m-total-count">—</span>
+          <span class="stat-label" data-i18n="totalLabel">总收录</span>
+        </div>
+        <div class="mobile-stat">
+          <span class="stat-value" id="m-today-count">—</span>
+          <span class="stat-label" data-i18n="todayLabel">今日新增</span>
+        </div>
       </div>
-      <div class="mobile-stat">
-        <span class="stat-value" id="m-today-count">—</span>
-        <span class="stat-label" data-i18n="todayLabel">今日新增</span>
+      <div class="mobile-section">
+        <h4 class="mobile-section-title" data-i18n="severityTitle">严重程度</h4>
+        <div class="mobile-severity-filter" id="mobile-severity-filter">
+          <button class="severity-btn severity-btn-text active" data-severity="" data-i18n="all">全部</button>
+          <button class="severity-btn" data-severity="5"><span class="severity-dot s5"></span></button>
+          <button class="severity-btn" data-severity="4"><span class="severity-dot s4"></span></button>
+          <button class="severity-btn" data-severity="3"><span class="severity-dot s3"></span></button>
+          <button class="severity-btn" data-severity="2"><span class="severity-dot s2"></span></button>
+          <button class="severity-btn" data-severity="1"><span class="severity-dot s1"></span></button>
+        </div>
+      </div>
+      <div class="mobile-section">
+        <h4 class="mobile-section-title" data-i18n="categoryTitle">分类</h4>
+        <div class="mobile-scroll-row" id="mobile-category-filter"></div>
+      </div>
+      <div class="mobile-section">
+        <h4 class="mobile-section-title" data-i18n="sourceTitle">来源</h4>
+        <div class="mobile-scroll-row" id="mobile-source-filter"></div>
+      </div>
+      <div class="mobile-section">
+        <h4 class="mobile-section-title" data-i18n="trendTitle">趋势</h4>
+        <canvas id="mobile-trend-chart" class="mobile-sparkline"></canvas>
       </div>
     </div>
   </div>

@@ -383,6 +383,68 @@
         },
       },
     });
+
+    // Mobile sparkline
+    renderMobileSparkline(data);
+  }
+
+  function renderMobileSparkline(data) {
+    const canvas = document.getElementById('mobile-trend-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const counts = data.map(d => d.count);
+    if (counts.length === 0) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+    const pad = 4;
+    const max = Math.max(...counts, 1);
+    const step = (w - pad * 2) / Math.max(counts.length - 1, 1);
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Fill area
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    counts.forEach((v, i) => {
+      const x = pad + i * step;
+      const y = h - pad - (v / max) * (h - pad * 2);
+      if (i === 0) ctx.lineTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.lineTo(pad + (counts.length - 1) * step, h - pad);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, 'rgba(255, 59, 59, 0.3)');
+    grad.addColorStop(1, 'rgba(255, 59, 59, 0.02)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    counts.forEach((v, i) => {
+      const x = pad + i * step;
+      const y = h - pad - (v / max) * (h - pad * 2);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = 'rgba(255, 59, 59, 0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Last point dot
+    const lastX = pad + (counts.length - 1) * step;
+    const lastY = h - pad - (counts[counts.length - 1] / max) * (h - pad * 2);
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 59, 59, 1)';
+    ctx.fill();
   }
 
   let cachedFilterData = null;
@@ -445,6 +507,42 @@
         `<span class="source-count">${src.count}</span>`;
       sourceFilter.appendChild(btn);
     });
+
+    // Mobile category filter
+    const mobileCatFilter = document.getElementById('mobile-category-filter');
+    if (mobileCatFilter) {
+      mobileCatFilter.innerHTML = '';
+      const allTag = document.createElement('button');
+      allTag.className = 'mobile-tag' + (activeCatValue === '' ? ' active' : '');
+      allTag.dataset.category = '';
+      allTag.textContent = t('all');
+      mobileCatFilter.appendChild(allTag);
+      cachedFilterData.categories.forEach(cat => {
+        const tag = document.createElement('button');
+        tag.className = 'mobile-tag' + (activeCatValue === cat.code ? ' active' : '');
+        tag.dataset.category = cat.code;
+        tag.textContent = cat.name;
+        mobileCatFilter.appendChild(tag);
+      });
+    }
+
+    // Mobile source filter
+    const mobileSrcFilter = document.getElementById('mobile-source-filter');
+    if (mobileSrcFilter) {
+      mobileSrcFilter.innerHTML = '';
+      const allTag = document.createElement('button');
+      allTag.className = 'mobile-tag' + (activeSrcValue === '' ? ' active' : '');
+      allTag.dataset.source = '';
+      allTag.textContent = t('all');
+      mobileSrcFilter.appendChild(allTag);
+      cachedFilterData.sources.forEach(src => {
+        const tag = document.createElement('button');
+        tag.className = 'mobile-tag' + (activeSrcValue === src.name ? ' active' : '');
+        tag.dataset.source = src.name;
+        tag.textContent = src.name;
+        mobileSrcFilter.appendChild(tag);
+      });
+    }
   }
 
   function resetAndFetch() {
@@ -465,11 +563,55 @@
 
   document.querySelectorAll('.severity-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // Sync active state across desktop & mobile severity buttons
       document.querySelectorAll('.severity-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      document.querySelectorAll(`.severity-btn[data-severity="${btn.dataset.severity}"]`).forEach(b => b.classList.add('active'));
       state.severity = btn.dataset.severity;
       resetAndFetch();
     });
+  });
+
+  // Mobile severity filter
+  const mobileSevFilter = document.getElementById('mobile-severity-filter');
+  if (mobileSevFilter) {
+    mobileSevFilter.addEventListener('click', (e) => {
+      const btn = e.target.closest('.severity-btn');
+      if (!btn) return;
+      document.querySelectorAll('.severity-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll(`.severity-btn[data-severity="${btn.dataset.severity}"]`).forEach(b => b.classList.add('active'));
+      state.severity = btn.dataset.severity;
+      resetAndFetch();
+    });
+  }
+
+  // Mobile category filter
+  document.addEventListener('click', (e) => {
+    const tag = e.target.closest('.mobile-tag[data-category]');
+    if (tag) {
+      document.querySelectorAll('.mobile-tag[data-category]').forEach(b => b.classList.remove('active'));
+      tag.classList.add('active');
+      // Sync desktop
+      document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+      const desktopBtn = document.querySelector(`.category-btn[data-category="${tag.dataset.category}"]`);
+      if (desktopBtn) desktopBtn.classList.add('active');
+      state.category = tag.dataset.category;
+      resetAndFetch();
+    }
+  });
+
+  // Mobile source filter
+  document.addEventListener('click', (e) => {
+    const tag = e.target.closest('.mobile-tag[data-source]');
+    if (tag) {
+      document.querySelectorAll('.mobile-tag[data-source]').forEach(b => b.classList.remove('active'));
+      tag.classList.add('active');
+      // Sync desktop
+      document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+      const desktopBtn = document.querySelector(`.source-btn[data-source="${tag.dataset.source}"]`);
+      if (desktopBtn) desktopBtn.classList.add('active');
+      state.source = tag.dataset.source;
+      resetAndFetch();
+    }
   });
 
   document.getElementById('category-filter').addEventListener('click', (e) => {
@@ -477,6 +619,10 @@
     if (btn) {
       document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      // Sync mobile
+      document.querySelectorAll('.mobile-tag[data-category]').forEach(b => b.classList.remove('active'));
+      const mobileTag = document.querySelector(`.mobile-tag[data-category="${btn.dataset.category}"]`);
+      if (mobileTag) mobileTag.classList.add('active');
       state.category = btn.dataset.category;
       resetAndFetch();
     }
@@ -487,6 +633,10 @@
     if (btn) {
       document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      // Sync mobile
+      document.querySelectorAll('.mobile-tag[data-source]').forEach(b => b.classList.remove('active'));
+      const mobileTag = document.querySelector(`.mobile-tag[data-source="${btn.dataset.source}"]`);
+      if (mobileTag) mobileTag.classList.add('active');
       state.source = btn.dataset.source;
       resetAndFetch();
     }
