@@ -28,7 +28,6 @@
 
   const HOME_STATE_KEY = 'aicrash_home_state';
   const VIEWED_NEWS_KEY = 'aicrash_viewed_news';
-  const VIEW_COUNT_KEY = 'aicrash_view_counts';
 
   function getViewedSet() {
     try {
@@ -39,20 +38,12 @@
     }
   }
 
-  function getViewCount(url) {
-    if (!url) return 0;
-    const counts = (() => {
-      try {
-        const raw = localStorage.getItem(VIEW_COUNT_KEY);
-        return raw ? JSON.parse(raw) : {};
-      } catch {
-        return {};
-      }
-    })();
-    return counts[url] || 0;
+  function getViewedIds() {
+    const viewed = getViewedSet();
+    return Object.keys(viewed).filter(k => viewed[k]).join(',');
   }
 
-  function markViewed(url) {
+  async function markViewed(url, id) {
     if (!url) return;
     const viewed = getViewedSet();
     if (viewed[url]) return;
@@ -62,19 +53,20 @@
     } catch (err) {
       console.error('Failed to save viewed set:', err);
     }
-    const counts = (() => {
+    // Call server API to increment view_count (idempotent per user)
+    if (id) {
       try {
-        const raw = localStorage.getItem(VIEW_COUNT_KEY);
-        return raw ? JSON.parse(raw) : {};
-      } catch {
-        return {};
+        await fetch('/api/news/view', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Viewed-Key': getViewedIds(),
+          },
+          body: JSON.stringify({ id }),
+        });
+      } catch (err) {
+        console.error('Failed to record view:', err);
       }
-    })();
-    counts[url] = (counts[url] || 0) + 1;
-    try {
-      localStorage.setItem(VIEW_COUNT_KEY, JSON.stringify(counts));
-    } catch (err) {
-      console.error('Failed to save view count:', err);
     }
   }
 
@@ -188,7 +180,7 @@
       ? '<div class="severity-badge s0">✓</div>'
       : `<div class="severity-badge s${item.severity || 1}">${item.severity || 1}</div>`;
 
-    const viewCount = getViewCount(item.url);
+    const viewCount = item.view_count || 0;
 
     el.innerHTML = `
       <div class="news-item-header">
@@ -670,10 +662,8 @@
   newsFeed.addEventListener('click', (e) => {
     const item = e.target.closest('.news-item');
     if (item?.dataset.url) {
-      markViewed(item.dataset.url);
+      markViewed(item.dataset.url, item.dataset.id);
       item.classList.add('read');
-      const viewEl = item.querySelector('.news-view-count .view-count-number');
-      if (viewEl) viewEl.textContent = getViewCount(item.dataset.url);
       saveHomeState(item.dataset.url);
     }
   });

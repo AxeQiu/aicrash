@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS news (
   source VARCHAR(100),
   category VARCHAR(50),
   severity TINYINT UNSIGNED DEFAULT 1 COMMENT '0=利好, 1-5=负面程度(5最严重)',
+  view_count INT UNSIGNED DEFAULT 0 COMMENT '查看次数',
   published_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_published_at (published_at DESC),

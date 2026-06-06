@@ -263,4 +263,31 @@ router.get('/news/article', async (req, res) => {
   }
 });
 
+// Record a view for an article (idempotent per user)
+router.post('/news/view', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id required' });
+
+    // Check if user already viewed (via localStorage key sent from frontend)
+    const viewedKey = req.headers['x-viewed-key'];
+    if (viewedKey) {
+      // Frontend sends the viewed set as a comma-separated list of IDs
+      const viewedIds = viewedKey.split(',').map(Number).filter(Boolean);
+      if (viewedIds.includes(Number(id))) {
+        // Already viewed by this user, don't increment
+        const [rows] = await db.query('SELECT view_count FROM news WHERE id = ?', [id]);
+        return res.json({ view_count: rows[0]?.view_count || 0, already_viewed: true });
+      }
+    }
+
+    await db.query('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [id]);
+    const [rows] = await db.query('SELECT view_count FROM news WHERE id = ?', [id]);
+    res.json({ view_count: rows[0]?.view_count || 0, already_viewed: false });
+  } catch (err) {
+    console.error('Failed to record view:', err);
+    res.status(500).json({ error: 'Failed to record view' });
+  }
+});
+
 module.exports = router;

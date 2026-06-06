@@ -61,51 +61,46 @@
     const API_BASE = '/api';
     let articleData = null;
 
-    const VIEW_COUNT_KEY = 'aicrash_view_counts';
     const VIEWED_NEWS_KEY = 'aicrash_viewed_news';
 
-    function getLocalViewCount(url) {
-      if (!url) return 0;
+    function getViewedSet() {
       try {
-        const raw = localStorage.getItem(VIEW_COUNT_KEY);
-        const counts = raw ? JSON.parse(raw) : {};
-        return counts[url] || 0;
+        const raw = localStorage.getItem(VIEWED_NEWS_KEY);
+        return raw ? JSON.parse(raw) : {};
       } catch {
-        return 0;
+        return {};
       }
     }
 
-    function markLocalViewed(url) {
+    function getViewedIds() {
+      const viewed = getViewedSet();
+      return Object.keys(viewed).filter(k => viewed[k]).join(',');
+    }
+
+    async function markViewed(url, id) {
       if (!url) return;
-      let viewed = {};
-      try {
-        const raw = localStorage.getItem(VIEWED_NEWS_KEY);
-        viewed = raw ? JSON.parse(raw) : {};
-      } catch {
-        viewed = {};
-      }
-      if (viewed[url]) return false;
+      const viewed = getViewedSet();
+      if (viewed[url]) return;
       viewed[url] = true;
       try {
         localStorage.setItem(VIEWED_NEWS_KEY, JSON.stringify(viewed));
       } catch (err) {
         console.error('Failed to save viewed set:', err);
       }
-      const newCount = getLocalViewCount(url) + 1;
-      let counts = {};
-      try {
-        const raw = localStorage.getItem(VIEW_COUNT_KEY);
-        counts = raw ? JSON.parse(raw) : {};
-      } catch {
-        counts = {};
+      if (id) {
+        try {
+          await fetch('/api/news/view', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Viewed-Key': getViewedIds(),
+            },
+            body: JSON.stringify({ id }),
+          });
+        } catch (err) {
+          console.error('Failed to record view:', err);
+        }
       }
-      counts[url] = newCount;
-      try {
-        localStorage.setItem(VIEW_COUNT_KEY, JSON.stringify(counts));
-      } catch (err) {
-        console.error('Failed to save view count:', err);
-      }
-      return true;
     }
 
     function formatViewCount(count, lang) {
@@ -192,10 +187,10 @@
       document.getElementById('meta-created').textContent = formatDate(data.created_at, lang);
 
       const viewCountEl = document.getElementById('article-view-count');
-      if (viewCountEl && data.url) {
-        markLocalViewed(data.url);
+      if (viewCountEl) {
         const numberEl = viewCountEl.querySelector('.view-count-number');
-        if (numberEl) numberEl.textContent = getLocalViewCount(data.url);
+        if (numberEl) numberEl.textContent = data.view_count || 0;
+        markViewed(data.url, data.id);
       }
 
       const readOriginal = document.getElementById('read-original');
