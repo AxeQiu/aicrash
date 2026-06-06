@@ -576,19 +576,13 @@ body:not(.article-page) .main-layout {
   box-shadow: 0 0 0 1px var(--accent-dim);
 }
 
-.news-item.read {
-  opacity: 0.6;
-}
-
 .news-item.read .news-title {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
 .news-item.read:hover {
-  transform: none;
-  border-color: var(--border);
-  background: var(--bg-card);
+  border-color: var(--accent-dim);
 }
 
 /* News item border color matches severity */
