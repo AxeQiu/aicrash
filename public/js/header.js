@@ -11,6 +11,10 @@ window.headerPromise = (async function() {
       hamburger.addEventListener('click', () => {
         hamburger.classList.toggle('active');
         mobileMenu.classList.toggle('open');
+        // Re-render sparkline when menu opens (canvas was 0-sized when hidden)
+        if (mobileMenu.classList.contains('open') && window._renderMobileSparkline) {
+          requestAnimationFrame(() => window._renderMobileSparkline());
+        }
       });
 
       document.addEventListener('click', (e) => {

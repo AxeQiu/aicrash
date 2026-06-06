@@ -388,11 +388,15 @@
     renderMobileSparkline(data);
   }
 
+  let _lastTrendData = null;
+
   function renderMobileSparkline(data) {
+    if (data) _lastTrendData = data;
+    const trendData = _lastTrendData;
     const canvas = document.getElementById('mobile-trend-chart');
-    if (!canvas) return;
+    if (!canvas || !trendData) return;
     const ctx = canvas.getContext('2d');
-    const counts = data.map(d => d.count);
+    const counts = trendData.map(d => d.count);
     if (counts.length === 0) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -836,9 +840,10 @@
       lines = getTypewriterLines();
       lineIdx = 0;
       charIdx = 0;
-      isDeleting = false;
-      heroTypewriterEl.textContent = '';
-      typewriterTimer = setTimeout(tick, 300);
+    };
+
+    window._renderMobileSparkline = function () {
+      renderMobileSparkline();
     };
   }
 
