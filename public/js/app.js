@@ -561,6 +561,8 @@
 
     if (hasLangNews) {
       loadHeaderStats();
+      fetchFilters();
+      fetchTrends();
       liveIndicator.style.color = '#00ff88';
       setTimeout(() => {
         liveIndicator.style.color = '';

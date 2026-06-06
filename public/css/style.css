@@ -324,6 +324,17 @@ body:not(.article-page) .main-layout {
   min-width: 28px;
 }
 
+.severity-btn:not(.severity-btn-text) {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.severity-btn-text {
+  min-width: 48px;
+}
+
 .severity-btn:hover {
   border-color: var(--accent);
 }
